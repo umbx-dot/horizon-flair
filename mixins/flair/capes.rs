@@ -16,6 +16,9 @@ const RIPPLE: f32 = 0.035;
 const RIPPLE_SPEED: f32 = 2.6;
 const RIPPLE_STEP: f32 = 0.7;
 const SIDE_SWAY: f32 = 0.5;
+const FILL: f32 = 0.3;
+const INSET: f32 = 0.02;
+const TILE_TEXELS_PER_PX: f32 = 16.0;
 const CAPE_ROWS: usize = 32;
 const WHITE: u32 = 0xFF_FFFF;
 const BLACK: u32 = 0;
@@ -40,7 +43,7 @@ pub fn bend([lift, side]: [f32; 2], seconds: f32, i: usize) -> [f32; 3] {
 pub fn chain(cubes: impl Fn(usize) -> Vec<Cube>) -> Vec<Bone> {
     let mut below: Option<Bone> = None;
     for i in (0..SEGMENTS).rev() {
-        let mut segment = bone(&format!("seg{i}"), [0.0, SEGMENT_H * i as f32, CAPE_Z], cubes(i));
+        let mut segment = bone(&format!("seg{i}"), [0.0, SEGMENT_H * i as f32, CAPE_Z + 0.5], cubes(i));
         segment.children.extend(below.take());
         below = Some(segment);
     }
@@ -51,29 +54,48 @@ fn segment_box(i: usize, x: f32, width: f32) -> ([f32; 3], [f32; 3]) {
     ([x, SEGMENT_H * i as f32, CAPE_Z], [width, SEGMENT_H, 1.0])
 }
 
+fn filler_box(i: usize, x: f32, width: f32) -> ([f32; 3], [f32; 3]) {
+    ([x + INSET, SEGMENT_H * i as f32 - FILL, CAPE_Z + INSET], [width - 2.0 * INSET, FILL, 1.0 - 2.0 * INSET])
+}
+
 pub fn classic(i: usize) -> Vec<Cube> {
     let row = 1.0 + SEGMENT_H * i as f32;
     let next = row + SEGMENT_H;
     let top = if i == 0 { [1.0, 0.0, 11.0, 1.0] } else { NONE };
     let bottom = if i + 1 == SEGMENTS { [11.0, 0.0, 21.0, 1.0] } else { NONE };
     let (from, size) = segment_box(i, -HALF_W, 2.0 * HALF_W);
-    vec![Cube::faced(from, size, [top, bottom, [0.0, row, 1.0, next], [12.0, row, 22.0, next], [11.0, row, 12.0, next], [1.0, row, 11.0, next]], 0)]
+    let mut cubes = vec![Cube::faced(from, size, [top, bottom, [0.0, row, 1.0, next], [12.0, row, 22.0, next], [11.0, row, 12.0, next], [1.0, row, 11.0, next]], 0)];
+    if i > 0 {
+        let band = row + FILL;
+        let (from, size) = filler_box(i, -HALF_W, 2.0 * HALF_W);
+        cubes.push(Cube::faced(from, size, [NONE, NONE, [0.0, row, 1.0, band], [12.0, row, 22.0, band], [11.0, row, 12.0, band], [1.0, row, 11.0, band]], 0));
+    }
+    cubes
 }
 
 pub fn tiled(i: usize) -> Vec<Cube> {
     let half = (i % 2) as f32 * 32.0;
     let outer = [0.0, half, 64.0, half + 32.0];
     let lining = [0.0, 0.0, 8.0, 8.0];
-    let mut cubes: Vec<Cube> = (0..2)
-        .map(|c| {
-            let (from, size) = segment_box(i, if c == 0 { 0.0 } else { -HALF_W }, HALF_W);
-            Cube::faced(from, size, super::umbx_flair_model::only(5, outer), c + 2 * (i / 2))
-        })
-        .collect();
+    let band = [0.0, half, 64.0, half + FILL * TILE_TEXELS_PER_PX];
+    let mut cubes = Vec::new();
+    for c in 0..2 {
+        let x = if c == 0 { 0.0 } else { -HALF_W };
+        let (from, size) = segment_box(i, x, HALF_W);
+        cubes.push(Cube::faced(from, size, super::umbx_flair_model::only(5, outer), c + 2 * (i / 2)));
+        if i > 0 {
+            let (from, size) = filler_box(i, x, HALF_W);
+            cubes.push(Cube::faced(from, size, super::umbx_flair_model::only(5, band), c + 2 * (i / 2)));
+        }
+    }
     let (from, size) = segment_box(i, -HALF_W, 2.0 * HALF_W);
     let top = if i == 0 { lining } else { NONE };
     let bottom = if i + 1 == SEGMENTS { lining } else { NONE };
     cubes.push(Cube::faced(from, size, [top, bottom, lining, lining, lining, NONE], 8));
+    if i > 0 {
+        let (from, size) = filler_box(i, -HALF_W, 2.0 * HALF_W);
+        cubes.push(Cube::faced(from, size, [NONE, NONE, lining, lining, lining, NONE], 8));
+    }
     cubes
 }
 
@@ -239,6 +261,19 @@ mod tests {
         assert!(total([1.0, 0.0]) > total([0.0, 0.0]) + 1.0);
         assert_ne!(bend([0.0, 0.0], 0.0, 3), bend([0.0, 0.0], 0.5, 3));
         assert!(bend([0.0, 0.3], 0.0, 7)[2] > 0.0);
+    }
+
+    #[test]
+    fn joints_are_filled_but_hidden_while_flat() {
+        for cubes in [classic(3), tiled(3)] {
+            let fillers: Vec<&Cube> = cubes.iter().filter(|c| c.from[1] < SEGMENT_H * 3.0).collect();
+            assert!(!fillers.is_empty());
+            for f in fillers {
+                assert!(f.from[2] > CAPE_Z && f.from[2] + f.size[2] < CAPE_Z + 1.0);
+                assert!((f.from[1] - (SEGMENT_H * 3.0 - FILL)).abs() < 1e-6);
+            }
+        }
+        assert!(classic(0).iter().all(|c| c.from[1] >= 0.0));
     }
 
     #[test]
