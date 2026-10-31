@@ -7,22 +7,82 @@ priority = 100
 horizon_revision = "1da354b67a509812c4141b67de2affd6de65c342"
 
 [[module]]
+id = "paint"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_paint"
+source = "paint.rs"
+
+[[module]]
+id = "model"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_model"
+source = "model.rs"
+
+[[module]]
+id = "geo"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_geo"
+source = "geo.rs"
+
+[[module]]
+id = "items"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_items"
+source = "items.rs"
+
+[[module]]
 id = "capes"
 file = "crates/horizon-client/src/game.rs"
 name = "umbx_flair_capes"
 source = "capes.rs"
 
 [[module]]
-id = "cape_file"
+id = "hats"
 file = "crates/horizon-client/src/game.rs"
-name = "umbx_flair_cape_file"
-source = "cape_file.rs"
+name = "umbx_flair_hats"
+source = "hats.rs"
+
+[[module]]
+id = "back"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_back"
+source = "back.rs"
+
+[[module]]
+id = "pets"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_pets"
+source = "pets.rs"
+
+[[module]]
+id = "auras"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_auras"
+source = "auras.rs"
+
+[[module]]
+id = "texture_file"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_texture_file"
+source = "texture_file.rs"
 
 [[module]]
 id = "catalog"
 file = "crates/horizon-client/src/game.rs"
 name = "umbx_flair_catalog"
 source = "catalog.rs"
+
+[[module]]
+id = "custom"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_custom"
+source = "custom.rs"
+
+[[module]]
+id = "render"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_render"
+source = "render.rs"
 
 [[module]]
 id = "glue"
@@ -73,4 +133,27 @@ target = "horizon_client::game::Game<'_>::entity_geometry"
 helper = "hooks/wear.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+[[injection]]
+id = "frame"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_frame"
+helper = "hooks/frame.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+[[injection]]
+id = "worn"
+kind = "HEAD"
+target = "horizon_client::game::mob_blocks::Game<'_>::head_item_geometry"
+helper = "hooks/worn.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "mob", ty = "&horizon_client::mobs::Mob", value = "mob" },
+  { name = "camera", ty = "glam::DVec3", value = "camera" },
+  { name = "alpha", ty = "f64", value = "alpha" },
+  { name = "light", ty = "u32", value = "light" },
+  { name = "out", ty = "&mut Vec<horizon_client::mesher::Vertex>", value = "&mut *out" },
 ]

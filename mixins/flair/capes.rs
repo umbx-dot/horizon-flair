@@ -1,5 +1,7 @@
-pub const SIZE: usize = 64;
-pub const STYLES: [&str; 6] = ["Royal", "Nebula", "Ember", "Prism", "Frost", "Tide"];
+use super::umbx_flair_items::{Item, Moves, Paint, Slot};
+use super::umbx_flair_paint::{Canvas, hue, mix, noise, opaque, palette};
+
+pub const STYLES: [&str; 12] = ["Royal", "Nebula", "Ember", "Prism", "Frost", "Tide", "Aurora", "Void Rift", "Sakura", "Storm", "Code Rain", "Synthwave"];
 pub const FACE_W: usize = 10;
 pub const FACE_H: usize = 16;
 const CAPE_ROWS: usize = 32;
@@ -8,47 +10,54 @@ const BLACK: u32 = 0;
 const ROYAL: u32 = 0x4B_2496;
 const GOLD: u32 = 0xF2_C14E;
 
-pub fn cape(style: usize, frame: u32) -> Vec<u8> {
-    let mut rgba = vec![0; SIZE * SIZE * 4];
+pub fn items() -> Vec<Item> {
+    STYLES
+        .iter()
+        .enumerate()
+        .map(|(style, name)| Item::new(&name.to_lowercase().replace(' ', "_"), name, Slot::Cape, Vec::new(), Paint::Live(Box::new(move |frame| cape(style, frame))), Moves::Still))
+        .collect()
+}
+
+pub fn cape(style: usize, frame: u32) -> Canvas {
+    let mut canvas = Canvas::default();
     let t = f64::from(frame);
     for y in 0..CAPE_ROWS {
         let v = y.saturating_sub(1).min(FACE_H - 1);
-        for x in 0..SIZE {
+        for x in 0..64 {
             let (u, inner) = match x {
                 1..=10 => (x - 1, false),
                 12..=21 => (21 - x, true),
                 _ => (x % FACE_W, true),
             };
             let color = shade(style, u, v, t);
-            put(&mut rgba, x, y, if inner { mix(color, BLACK, 0.3) } else { color });
+            canvas.put(x, y, opaque(if inner { mix(color, BLACK, 0.3) } else { color }));
         }
     }
-    rgba
+    canvas
 }
 
-pub fn front(rgba: &[u8], u: usize, v: usize) -> u32 {
-    let i = ((v + 1) * SIZE + u + 1) * 4;
-    u32::from_be_bytes([rgba[i + 3], rgba[i], rgba[i + 1], rgba[i + 2]])
+pub fn front(canvas: &Canvas, u: usize, v: usize) -> u32 {
+    canvas.get(u + 1, v + 1)
 }
 
 fn shade(style: usize, u: usize, v: usize, t: f64) -> u32 {
     let (fu, fv) = (u as f64 / (FACE_W - 1) as f64, v as f64 / (FACE_H - 1) as f64);
+    let (ui, vi) = (u as i64, v as i64);
     match style {
         1 => {
             let nebula = 0.5 + 0.5 * (fu * 4.0 + t * 0.05).sin() * (fv * 3.0 - t * 0.03).cos();
             let base = palette(0x05_020F, 0x1B_0B3A, 0x4A_2380, nebula * (0.6 + 0.4 * fv));
-            let star = noise((u * 16 + v) as i64, 7);
+            let star = noise(ui * 16 + vi, 7);
             if star > 0.86 { mix(base, WHITE, 0.45 + 0.55 * (t * 0.6 + star * 50.0).sin().max(0.0)) } else { base }
         }
         2 => {
-            let flicker = 0.5 * (noise(u as i64, v as i64 + t as i64) + noise(u as i64, v as i64 + 1 + t as i64));
+            let flicker = 0.5 * (noise(ui, vi + t as i64) + noise(ui, vi + 1 + t as i64));
             palette(0x1A_0000, 0xD8_300A, 0xFF_D24A, (fv * 1.1 + 0.45 * flicker - 0.3).clamp(0.0, 1.0))
         }
         3 => mix(hue(fu * 0.25 + fv * 0.35 - t * 0.02), BLACK, 0.15 - 0.15 * (fv * 6.0 - t * 0.5).sin()),
         4 => {
             let base = palette(0xE4_F6FF, 0x7F_C4F0, 0x23_4F8C, fv);
-            let fall = (v as f64 - t * 0.3).floor() as i64;
-            let flake = noise(u as i64 * 31, fall) > 0.88;
+            let flake = noise(ui * 31, (v as f64 - t * 0.3).floor() as i64) > 0.88;
             let shimmer = ((u + 2 * v) as f64 - t * 0.6).rem_euclid(24.0) < 1.5;
             if flake { WHITE } else if shimmer { mix(base, WHITE, 0.5) } else { base }
         }
@@ -56,6 +65,73 @@ fn shade(style: usize, u: usize, v: usize, t: f64) -> u32 {
             let wave = (fv * 5.0 + 0.35 * (fu * 6.0 + t * 0.25).sin() - t * 0.06).rem_euclid(1.0);
             let water = palette(0x04_1E3A, 0x0B_5F8A, 0x2A_B7D6, 0.3 + 0.7 * wave);
             if wave > 0.9 { mix(water, 0xD8_FBFF, 0.8) } else { water }
+        }
+        6 => {
+            let sky = mix(0x02_0814, 0x0A_1F3A, fv);
+            let crest = 0.32 + 0.12 * (fu * 3.5 + t * 0.12).sin() + 0.05 * (fu * 9.0 - t * 0.2).sin();
+            let glow = (-(fv - crest).powi(2) * 30.0).exp() + 0.6 * (-(fv - crest - 0.22).powi(2) * 18.0).exp();
+            let curtain = palette(0x2C_FF9A, 0x1F_D6E0, 0x9B_5CFF, (fu + 0.2 * (t * 0.05).sin()).rem_euclid(1.0));
+            let star = noise(ui * 13 + vi, 3) > 0.93 && fv < 0.3 && (t * 0.4 + noise(ui, vi) * 9.0).sin() > 0.0;
+            if star { mix(sky, WHITE, 0.8) } else { mix(sky, curtain, glow.min(1.0)) }
+        }
+        7 => {
+            let line = 4.5 + 2.2 * (fv * 4.0 + t * 0.2).sin() + 0.8 * (fv * 11.0 - t * 0.35).sin();
+            let rift = (-(u as f64 - line).powi(2) * 0.45).exp();
+            let base = mix(0x05_0008, 0x18_0628, fv * 0.6);
+            let core = mix(mix(base, 0xB0_40FF, rift), WHITE, (rift - 0.75).max(0.0) * 3.0);
+            if noise(vi, t as i64 / 3) > 0.9 { mix(core, 0x30_F0FF, 0.6) } else { core }
+        }
+        8 => {
+            let base = palette(0x2A_0E1E, 0x4A_1838, 0x7A_2A50, fv);
+            let petal = noise(ui + (t * 0.25) as i64, vi - (t * 0.5) as i64);
+            let branch = v == 2 && u < 8 || v == 3 && (3..6).contains(&u) || v == 1 && u == 7;
+            if branch {
+                0x3B_2016
+            } else if petal > 0.9 {
+                mix(0xFF_B7D5, WHITE, (petal - 0.9) * 6.0)
+            } else {
+                base
+            }
+        }
+        9 => {
+            let cloud = 0.5 * (noise(ui / 2 + (t * 0.1) as i64, vi / 2) + noise(ui, vi + 7));
+            let sky = palette(0x0B_0F1C, 0x24_2E45, 0x47_5670, (1.0 - fv) * 0.6 + cloud * 0.4);
+            let flash = (t as u64 % 37) < 3;
+            let bolt = 4.5 + ((v as f64 * 1.7 + (t as u64 / 37) as f64 * 5.0).sin() * 2.0).round();
+            if flash && (u as f64 - bolt).abs() < 0.6 {
+                0xE8_F4FF
+            } else if flash {
+                mix(sky, 0x9F_B8FF, 0.35)
+            } else {
+                sky
+            }
+        }
+        10 => {
+            let speed = 0.4 + noise(ui, 1) * 0.6;
+            let head = (t * speed + noise(ui, 2) * 24.0).rem_euclid(24.0);
+            let behind = head - v as f64;
+            if behind.abs() < 0.5 {
+                0xD8_FFD8
+            } else if (0.0..9.0).contains(&behind) {
+                let glyph = 0.65 + 0.35 * noise(ui * 17 + vi, (t / 4.0) as i64);
+                mix(BLACK, 0x1C_FF5C, (1.0 - behind / 9.0) * glyph)
+            } else {
+                0x00_0A04
+            }
+        }
+        11 => {
+            if fv < 0.62 {
+                let sky = palette(0x2B_0B4F, 0xC2_2E8C, 0xFF_9A3C, fv / 0.62);
+                let (dx, dy) = (u as f64 - 4.5, v as f64 - 6.5);
+                let sun = dx * dx + dy * dy < 12.5;
+                let gap = sun && v > 6 && ((v as f64 + t * 0.15).floor() as i64) % 3 == 0;
+                if sun && !gap { mix(0xFF_E066, 0xFF_5E9A, (v as f64 - 3.0) / 7.0) } else { sky }
+            } else {
+                let depth = v as f64 - 9.9;
+                let row = ((depth * depth * 0.9 + t * 0.25).rem_euclid(2.0)) < 0.35;
+                let col = ((u as f64 - 4.5) / (depth + 1.0) * 3.0).rem_euclid(2.0) < 0.3;
+                if row || col { 0xFF_3CC8 } else { 0x14_0424 }
+            }
         }
         _ => {
             let diamond = (u as f64 - 4.5).abs() + (v as f64 - 7.0).abs();
@@ -74,78 +150,36 @@ fn shade(style: usize, u: usize, v: usize, t: f64) -> u32 {
     }
 }
 
-fn put(rgba: &mut [u8], x: usize, y: usize, rgb: u32) {
-    let i = (y * SIZE + x) * 4;
-    rgba[i..i + 4].copy_from_slice(&[(rgb >> 16) as u8, (rgb >> 8) as u8, rgb as u8, 0xFF]);
-}
-
-fn mix(a: u32, b: u32, t: f64) -> u32 {
-    let t = t.clamp(0.0, 1.0);
-    let channel = |shift: u32| {
-        let (x, y) = (f64::from((a >> shift) & 0xFF), f64::from((b >> shift) & 0xFF));
-        ((x + (y - x) * t).round() as u32) << shift
-    };
-    channel(16) | channel(8) | channel(0)
-}
-
-fn palette(low: u32, mid: u32, high: u32, t: f64) -> u32 {
-    if t < 0.5 { mix(low, mid, t * 2.0) } else { mix(mid, high, (t - 0.5) * 2.0) }
-}
-
-fn hue(turns: f64) -> u32 {
-    let h = turns.rem_euclid(1.0) * 6.0;
-    let x = 1.0 - (h % 2.0 - 1.0).abs();
-    let (r, g, b) = match h as u32 {
-        0 => (1.0, x, 0.0),
-        1 => (x, 1.0, 0.0),
-        2 => (0.0, 1.0, x),
-        3 => (0.0, x, 1.0),
-        4 => (x, 0.0, 1.0),
-        _ => (1.0, 0.0, x),
-    };
-    let byte = |v: f64| (v * 255.0).round() as u32;
-    byte(r) << 16 | byte(g) << 8 | byte(b)
-}
-
-fn noise(a: i64, b: i64) -> f64 {
-    let mut h = (a as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ (b as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
-    h ^= h >> 31;
-    h = h.wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    h ^= h >> 29;
-    (h >> 11) as f64 / (1u64 << 53) as f64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn alpha(rgba: &[u8], x: usize, y: usize) -> u8 {
-        rgba[(y * SIZE + x) * 4 + 3]
-    }
-
     #[test]
     fn every_style_fills_the_top_half_only() {
         for style in 0..STYLES.len() {
-            let rgba = cape(style, 3);
-            assert_eq!(rgba.len(), SIZE * SIZE * 4);
-            assert!((0..CAPE_ROWS).all(|y| (0..SIZE).all(|x| alpha(&rgba, x, y) == 0xFF)));
-            assert!((CAPE_ROWS..SIZE).all(|y| (0..SIZE).all(|x| alpha(&rgba, x, y) == 0)));
+            let canvas = cape(style, 3);
+            assert!((0..CAPE_ROWS).all(|y| (0..64).all(|x| canvas.get(x, y) >> 24 == 0xFF)));
+            assert!((CAPE_ROWS..64).all(|y| (0..64).all(|x| canvas.get(x, y) == 0)));
         }
     }
 
     #[test]
     fn every_style_animates() {
         for style in 0..STYLES.len() {
-            assert_ne!(cape(style, 1), cape(style, 9), "{}", STYLES[style]);
+            let frames: Vec<Canvas> = (0..40).map(|f| cape(style, f)).collect();
+            assert!(frames.windows(2).any(|w| w[0] != w[1]), "{}", STYLES[style]);
         }
     }
 
     #[test]
-    fn front_reads_the_outside_face_as_argb() {
-        let mut rgba = vec![0; SIZE * SIZE * 4];
-        put(&mut rgba, 1, 1, 0x12_3456);
-        put(&mut rgba, 10, 16, 0xAB_CDEF);
-        assert_eq!(front(&rgba, 0, 0), 0xFF12_3456);
-        assert_eq!(front(&rgba, FACE_W - 1, FACE_H - 1), 0xFFAB_CDEF);
+    fn items_have_unique_keys_and_read_the_front_face() {
+        let items = items();
+        let mut keys: Vec<_> = items.iter().map(|i| i.key.clone()).collect();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(keys.len(), STYLES.len());
+        let mut canvas = Canvas::default();
+        canvas.put(1, 1, 0xFF12_3456);
+        assert_eq!(front(&canvas, 0, 0), 0xFF12_3456);
     }
 }

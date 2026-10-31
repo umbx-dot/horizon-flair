@@ -1,56 +1,35 @@
 use super::Game;
-use super::umbx_flair_cape_file as cape_file;
+use super::umbx_flair_auras as auras;
+use super::umbx_flair_back as back;
 use super::umbx_flair_capes as capes;
 use super::umbx_flair_catalog::{self as catalog, Hit, Layout};
+use super::umbx_flair_custom as custom;
+use super::umbx_flair_hats as hats;
+use super::umbx_flair_items::{Item, SLOTS, Slot};
+use super::umbx_flair_pets as pets;
+use super::umbx_flair_render::{self as render, Shape};
 use super::umbx_flair_screen as screen;
-use std::borrow::Cow;
 use std::ops::ControlFlow;
-use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
-const CAPE: &str = "capes/flair";
-const CAPE_KEY: &str = "cape";
-const TICK_MS: u128 = 50;
-const STYLE_FRAME_MS: u128 = 100;
+pub(super) const CAPE: &str = "capes/flair";
 
-enum Art {
-    Style(usize),
-    Frames { frames: Vec<Vec<u8>>, ticks: u32 },
-}
-
-pub(super) struct Cape {
-    pub(super) key: String,
-    pub(super) name: String,
-    art: Art,
-}
-
-impl Cape {
-    fn frame(&self, ms: u128) -> usize {
-        match &self.art {
-            Art::Style(_) => (ms / STYLE_FRAME_MS) as usize,
-            Art::Frames { frames, ticks } => (ms / (u128::from(*ticks) * TICK_MS)) as usize % frames.len(),
-        }
-    }
-
-    pub(super) fn pixels(&self, ms: u128) -> Cow<'_, [u8]> {
-        match &self.art {
-            Art::Style(style) => Cow::Owned(capes::cape(*style, self.frame(ms) as u32)),
-            Art::Frames { frames, .. } => Cow::Borrowed(&frames[self.frame(ms)]),
-        }
-    }
+pub(super) struct Entry {
+    pub(super) item: Item,
+    pub(super) shape: Option<Shape>,
 }
 
 pub(super) struct State {
     pub(super) open: bool,
     pub(super) category: usize,
     pub(super) scroll: usize,
-    pub(super) capes: Vec<Cape>,
-    pub(super) equipped: Option<String>,
+    pub(super) entries: Vec<Entry>,
+    pub(super) equipped: [Option<String>; 5],
     ready: bool,
-    uploaded: Option<(String, usize)>,
+    uploaded: Vec<(String, usize)>,
     original: Option<String>,
     started: Option<Instant>,
 }
@@ -59,10 +38,10 @@ static STATE: Mutex<State> = Mutex::new(State {
     open: false,
     category: 0,
     scroll: 0,
-    capes: Vec::new(),
-    equipped: None,
+    entries: Vec::new(),
+    equipped: [None, None, None, None, None],
     ready: false,
-    uploaded: None,
+    uploaded: Vec::new(),
     original: None,
     started: None,
 });
@@ -71,55 +50,36 @@ pub(super) fn state() -> MutexGuard<'static, State> {
     STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+pub(super) fn texture(item: &Item) -> String {
+    if item.slot == Slot::Cape { CAPE.to_owned() } else { format!("flair/{}", item.key) }
+}
+
 impl State {
-    pub(super) fn millis(&mut self) -> u128 {
-        self.started.get_or_insert_with(Instant::now).elapsed().as_millis()
+    pub(super) fn millis(&self) -> u128 {
+        self.started.map_or(0, |s| s.elapsed().as_millis())
     }
 
-    pub(super) fn cards(&self) -> usize {
-        if self.category == 0 { self.capes.len() } else { 0 }
+    pub(super) fn seconds(&self) -> f32 {
+        self.millis() as f32 / 1000.0
+    }
+
+    pub(super) fn shown(&self) -> Vec<usize> {
+        (0..self.entries.len()).filter(|i| self.entries[*i].item.slot == SLOTS[self.category]).collect()
+    }
+
+    pub(super) fn worn(&self, slot: Slot) -> Option<usize> {
+        let key = self.equipped[slot as usize].as_deref()?;
+        self.entries.iter().position(|e| e.item.slot == slot && e.item.key == key)
     }
 
     fn load(&mut self, game: &Game<'_>) {
-        self.capes = capes::STYLES.iter().enumerate().map(|(i, name)| Cape { key: name.to_lowercase(), name: (*name).into(), art: Art::Style(i) }).collect();
-        self.capes.extend(custom_capes(game));
+        let items = [capes::items(), hats::items(), back::items(), pets::items(), auras::items(), custom::items(&game.native_data_dir(catalog::ID))];
+        self.entries = items.into_iter().flatten().map(|item| Entry { shape: (item.slot != Slot::Cape).then(|| render::shape(&item)), item }).collect();
         if !self.ready {
-            self.equipped = game.native_setting(catalog::ID, CAPE_KEY).filter(|key| !key.is_empty());
+            self.equipped = SLOTS.map(|slot| game.native_setting(catalog::ID, slot.key()).filter(|key| !key.is_empty()));
             self.ready = true;
         }
-        self.uploaded = None;
-    }
-}
-
-fn custom_capes(game: &Game<'_>) -> Vec<Cape> {
-    let dir = game.native_data_dir(catalog::ID).join("capes");
-    let Ok(entries) = std::fs::read_dir(&dir) else { return Vec::new() };
-    let mut paths: Vec<_> = entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("png"))).collect();
-    paths.sort();
-    paths
-        .iter()
-        .filter_map(|path| custom_cape(path).map_err(|error| log::warn!("Flair: cape {} skipped: {error}", path.display())).ok())
-        .collect()
-}
-
-fn custom_cape(path: &Path) -> Result<Cape, String> {
-    let (width, height, rgba) = horizon_client::hud::decode(path).map_err(|e| e.to_string())?;
-    let frames = cape_file::frames(width, height, &rgba)?;
-    let file = path.file_name().unwrap_or_default().to_string_lossy();
-    let name = path.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-    Ok(Cape { key: format!("custom:{file}"), name, art: Art::Frames { frames, ticks: frametime(path) } })
-}
-
-fn frametime(path: &Path) -> u32 {
-    let mut meta = path.as_os_str().to_owned();
-    meta.push(".mcmeta");
-    let Ok(text) = std::fs::read_to_string(&meta) else { return 1 };
-    match serde_json::from_str::<serde_json::Value>(&text) {
-        Ok(json) => json["animation"]["frametime"].as_u64().map_or(1, |t| t.clamp(1, 1200) as u32),
-        Err(error) => {
-            log::warn!("Flair: {} ignored: {error}", Path::new(&meta).display());
-            1
-        }
+        self.uploaded.clear();
     }
 }
 
@@ -130,6 +90,37 @@ pub(super) fn listed(mods: &mut Vec<super::native_hooks::NativeMod>) {
         description: catalog::DESCRIPTION.into(),
         keys: Vec::new(),
     });
+}
+
+pub(super) fn frame(game: &mut Game<'_>) {
+    if !game.native_on(catalog::ID) {
+        return;
+    }
+    let mut flair = state();
+    flair.started.get_or_insert_with(Instant::now);
+    if !flair.ready {
+        flair.load(game);
+    }
+    let ms = flair.millis();
+    let mut wanted: Vec<usize> = SLOTS.iter().filter_map(|s| flair.worn(*s)).collect();
+    if flair.open && SLOTS[flair.category] != Slot::Cape {
+        let (w, h) = game.gui_size();
+        let shown = flair.shown();
+        wanted.extend(Layout::new(w, h, screen::previewing(game)).visible(shown.len(), flair.scroll).map(|i| shown[i]));
+    }
+    for i in wanted {
+        let item = &flair.entries[i].item;
+        let (location, frame) = (texture(item), item.frame(ms));
+        let current = flair.uploaded.iter().position(|(l, _)| *l == location);
+        if current.map(|c| flair.uploaded[c].1) != Some(frame) || !game.gui.atlas.sprites.contains_key(&location) {
+            game.store_skin(location.clone(), item.canvas(ms).into_owned().0);
+            match current {
+                Some(c) => flair.uploaded[c].1 = frame,
+                None => flair.uploaded.push((location.clone(), frame)),
+            }
+        }
+        game.skin_downloads.borrow_mut().drawn(&location);
+    }
 }
 
 pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()> {
@@ -150,6 +141,7 @@ pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()
         game.audio.play_button_click();
         return ControlFlow::Break(());
     }
+    let layout = Layout::new(size.0, size.1, screen::previewing(game));
     match event {
         WindowEvent::KeyboardInput { event, .. } => {
             if let PhysicalKey::Code(code) = event.physical_key {
@@ -161,14 +153,14 @@ pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()
                 }
             }
         }
-        WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => click(game, &mut flair, Layout::new(size.0, size.1), cursor),
+        WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => click(game, &mut flair, layout, cursor),
         WindowEvent::MouseInput { .. } => {}
         WindowEvent::MouseWheel { delta, .. } => {
             let steps = match delta {
                 MouseScrollDelta::LineDelta(_, y) => *y,
                 MouseScrollDelta::PixelDelta(p) => p.y as f32,
             };
-            let max = Layout::new(size.0, size.1).max_scroll(flair.cards());
+            let max = layout.max_scroll(flair.shown().len());
             flair.scroll = if steps > 0.0 { flair.scroll.saturating_sub(1) } else if steps < 0.0 { (flair.scroll + 1).min(max) } else { flair.scroll };
         }
         _ => return ControlFlow::Continue(()),
@@ -177,7 +169,8 @@ pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()
 }
 
 fn click(game: &mut Game<'_>, flair: &mut State, layout: Layout, cursor: [f32; 2]) {
-    match layout.hit(cursor, flair.cards(), flair.scroll) {
+    let shown = flair.shown();
+    match layout.hit(cursor, SLOTS.len(), shown.len(), flair.scroll) {
         Hit::Panel => return,
         Hit::Outside => flair.open = false,
         Hit::Category(i) => {
@@ -185,34 +178,22 @@ fn click(game: &mut Game<'_>, flair: &mut State, layout: Layout, cursor: [f32; 2
             flair.scroll = 0;
         }
         Hit::Card(i) => {
-            let key = flair.capes[i].key.clone();
-            flair.equipped = (flair.equipped.as_deref() != Some(key.as_str())).then_some(key);
-            game.native_set_setting(catalog::ID, CAPE_KEY, flair.equipped.as_deref().unwrap_or(""));
+            let item = &flair.entries[shown[i]].item;
+            let (slot, key) = (item.slot, item.key.clone());
+            let worn = &mut flair.equipped[slot as usize];
+            *worn = (worn.as_deref() != Some(key.as_str())).then_some(key);
+            game.native_set_setting(catalog::ID, slot.key(), worn.as_deref().unwrap_or(""));
         }
     }
     game.audio.play_button_click();
 }
 
 pub(super) fn wear(game: &mut Game<'_>) {
-    if !game.native_on(catalog::ID) || game.player_model.is_none() {
+    if !game.native_on(catalog::ID) {
         return;
     }
     let mut flair = state();
-    if !flair.ready {
-        flair.load(game);
-    }
-    let ms = flair.millis();
-    let worn = flair.equipped.as_ref().and_then(|key| flair.capes.iter().position(|c| &c.key == key));
-    if let Some(i) = worn {
-        let cape = &flair.capes[i];
-        let shown = (cape.key.clone(), cape.frame(ms));
-        if flair.uploaded.as_ref() != Some(&shown) || !game.gui.atlas.sprites.contains_key(CAPE) {
-            game.store_skin(CAPE.to_owned(), cape.pixels(ms).into_owned());
-            flair.uploaded = Some(shown);
-        }
-    }
-    game.skin_downloads.borrow_mut().drawn(CAPE);
-    let shown = worn.is_some() && game.gui.atlas.sprites.contains_key(CAPE);
+    let shown = flair.worn(Slot::Cape).is_some() && game.gui.atlas.sprites.contains_key(CAPE);
     let Some(model) = game.player_model.as_mut() else { return };
     if model.cape.as_deref() != Some(CAPE) {
         flair.original = model.cape.clone();

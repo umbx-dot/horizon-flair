@@ -4,4 +4,7 @@ version = "1.0.0"
 edition = "2024"
 license = "MIT"
 publish = false
-description = "Flair for Horizon, a native mod: a cosmetics catalog with animated capes."
+description = "Flair for Horizon, a native mod: a cosmetics catalog with capes, hats, wings, pets and auras."
+
+[dependencies]
+serde_json = "=1.0.151"
