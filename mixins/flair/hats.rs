@@ -1,123 +1,17 @@
 use super::umbx_flair_items::{Item, Moves, Paint, Slot, wave};
-use super::umbx_flair_model::{Bone, Cube, Motion, Uv, bone, cube};
-use super::umbx_flair_paint::{Canvas, Side, mix, noise, opaque};
+use super::umbx_flair_model::{Bone, Motion, bone, cube};
+use super::umbx_flair_paint::{Canvas, Side, mix, opaque};
 
 const WHITE: u32 = 0xFF_FFFF;
 const BLACK: u32 = 0;
 
 pub fn items() -> Vec<Item> {
-    let mut items = bandanas();
-    items.extend([
+    vec![
         Item::new("top_hat", "Top Hat", Slot::Hat, top_hat(), Paint::Still(top_hat_paint()), Moves::Still),
         Item::new("halo", "Halo", Slot::Hat, halo(), Paint::Live(Box::new(halo_paint)), Moves::Live(Box::new(float))).glowing(),
         Item::new("crown", "Crown", Slot::Hat, crown(), Paint::Live(Box::new(crown_paint)), Moves::Still),
         Item::new("devil_horns", "Devil Horns", Slot::Hat, horns(), Paint::Still(horns_paint()), Moves::Still),
-    ]);
-    items
-}
-
-const GLYPHS: [[&str; 5]; 8] = [
-    ["..#..", "#.#.#", "..#..", ".#.#.", "#...#"],
-    ["..#..", "#####", ".###.", "#.#.#", "..#.."],
-    ["..#..", "#.#.#", "#.#.#", "#.#.#", "#####"],
-    ["#####", "..#..", ".###.", "..#..", "#####"],
-    ["..#..", "#####", "..#..", ".#.#.", "#...#"],
-    ["####.", "..#..", ".#.#.", "#.#.#", ".#.#."],
-    ["..#..", "#####", "#.#.#", "#####", "..#.."],
-    [".#...", "#####", ".#..#", "#...#", "#..##"],
-];
-const EMBLEM: [&str; 7] = ["..###..", ".#...#.", "#..#..#", "#.###.#", "#..#..#", ".#...#.", "..###.."];
-const STRIP: usize = 128;
-const FACE: usize = 32;
-const ROWS: usize = 10;
-const CELL: usize = 8;
-
-#[derive(Clone, Copy)]
-struct Band {
-    cloth: u32,
-    ink: u32,
-    edge: u32,
-    stars: bool,
-}
-
-fn bandanas() -> Vec<Item> {
-    let band = |key: &str, name: &str, look: Band| Item::new(key, name, Slot::Hat, bandana(), Paint::Live(Box::new(move |f| bandana_paint(look, f))), Moves::Live(Box::new(tails)));
-    vec![
-        band("shinobi_bandana", "Shinobi", Band { cloth: 0xF2_F2EE, ink: 0x14_1414, edge: 0x30_3030, stars: false }),
-        band("ronin_bandana", "Ronin", Band { cloth: 0xA8_1028, ink: 0x14_0406, edge: 0x5E_0814, stars: false }),
-        band("shadow_bandana", "Shadow", Band { cloth: 0x15_151B, ink: 0xD8_2238, edge: 0x2E_2E3A, stars: false }),
-        band("sakura_bandana", "Sakura", Band { cloth: 0xF3_A9C4, ink: 0xFF_FFFF, edge: 0xC8_5F8A, stars: false }),
-        band("galaxy_bandana", "Galaxy", Band { cloth: 0x0E_0B1C, ink: 0xF4_F0FF, edge: 0x24_1C3C, stars: true }),
-        band("neon_bandana", "Neon", Band { cloth: 0x0A_0C12, ink: 0x3C_E8FF, edge: 0x1A_4A58, stars: false }).glowing(),
     ]
-}
-
-fn bandana() -> Vec<Bone> {
-    let none = [f32::NAN; 4];
-    let f = FACE as f32;
-    let r = ROWS as f32;
-    let faces = [none, none, [f, r, 2.0 * f, 2.0 * r], [0.0, 0.0, f, r], [f, 0.0, 2.0 * f, r], [0.0, r, f, 2.0 * r]];
-    let band = Cube { from: [-4.0, -8.0, -4.0], size: [8.0, 2.5, 8.0], uv: Uv::Faces(faces), inflate: 0.25, mirror: false };
-    let low = bone("tail_low_l", [-0.5, -4.6, 4.5], vec![cube([-1.0, -4.6, 4.3], [1.0, 2.0, 0.4], [0.0, 24.0])]).turned([0.25, 0.0, 0.0]);
-    let tail = bone("tail_l", [-0.5, -6.6, 4.5], vec![cube([-1.0, -6.6, 4.3], [1.0, 2.0, 0.4], [0.0, 24.0])]).turned([0.4, 0.0, 0.15]).with(vec![low]);
-    vec![
-        bone("band", [0.0; 3], vec![band]),
-        bone("knot", [0.0, -6.75, 4.25], vec![cube([-0.75, -7.5, 4.25], [1.5, 1.5, 0.75], [0.0, 20.0])]),
-        tail.mirrored("tail_r"),
-        tail,
-    ]
-}
-
-fn tails(name: &str, t: f32) -> Motion {
-    if !name.starts_with("tail_") {
-        return Motion::REST;
-    }
-    let right = name.starts_with("tail_r");
-    let low = name.contains("low");
-    let phase = if low { 0.9 } else { 0.0 } + if right { 0.5 } else { 0.0 };
-    let size = if low { 0.3 } else { 0.15 };
-    let side = if right { 1.0 } else { -1.0 };
-    Motion { rotation: [size * wave(t, 3.2, phase), 0.0, side * 0.08 * wave(t, 2.1, phase)], ..Motion::REST }
-}
-
-fn glyph(index: usize, column: usize, row: usize) -> bool {
-    GLYPHS[index % GLYPHS.len()][row].as_bytes()[column] == b'#'
-}
-
-fn strip_at(s: usize, row: usize) -> (usize, usize) {
-    if s < 2 * FACE { (s, row) } else { (s - 2 * FACE, row + ROWS) }
-}
-
-fn bandana_paint(look: Band, frame: u32) -> Canvas {
-    let mut canvas = Canvas::default();
-    let shift = frame as usize;
-    for s in 0..STRIP {
-        for row in 0..ROWS {
-            let front = s < FACE;
-            let (column, line) = ((s + shift) % CELL, row as isize - 3);
-            let cell = (s + shift) / CELL;
-            let mut color = if row == 0 || row + 1 == ROWS {
-                look.edge
-            } else if (0..5).contains(&line) && column < 5 && !(look.stars && front) && glyph(cell, column, line as usize) {
-                look.ink
-            } else {
-                look.cloth
-            };
-            if look.stars {
-                let (ex, ey) = (s as isize - 12, row as isize - 1);
-                if front && (0..7).contains(&ex) && (0..7).contains(&ey) && EMBLEM[ey as usize].as_bytes()[ex as usize] == b'#' {
-                    color = look.ink;
-                } else if row > 0 && row + 1 < ROWS && noise(s as i64, row as i64 + (frame / 4) as i64 * 131) > 0.9 {
-                    color = [0x8C_5CFF, 0x5C_E0B0, 0xFF_FFFF][s % 3];
-                }
-            }
-            let (x, y) = strip_at(s, row);
-            canvas.put(x, y, opaque(color));
-        }
-    }
-    canvas.rect([0, 20, 8, 4], |x, y| opaque(if y == 0 || x == 0 { look.edge } else { look.cloth }));
-    canvas.rect([0, 24, 8, 4], |x, y| opaque(if y == 3 || x == 0 { look.edge } else { look.cloth }));
-    canvas
 }
 
 fn top_hat() -> Vec<Bone> {
@@ -237,18 +131,13 @@ mod tests {
             let (lo, hi) = bounds(&item.bones).unwrap();
             assert!(lo[1] >= -18.0 && hi[1] <= 1.0, "{}", item.key);
             assert!(lo[0] >= -7.0 && hi[0] <= 7.0, "{}", item.key);
-            assert_eq!(item.canvas(0).0.len(), 64 * 64 * 4);
+            assert_eq!(item.canvases(0)[0].0.len(), 64 * 64 * 4);
         }
     }
 
     #[test]
-    fn bandana_tails_sway_and_the_halo_floats() {
-        assert_ne!(tails("tail_l", 0.3), tails("tail_l", 0.9));
-        assert_ne!(tails("tail_r.tail_low_l", 0.3), tails("tail_l", 0.3));
-        assert_eq!(tails("band", 0.3), Motion::REST);
-        let look = Band { cloth: 1, ink: 2, edge: 3, stars: false };
-        assert_ne!(bandana_paint(look, 0), bandana_paint(look, 1));
-        assert_eq!(strip_at(70, 2), (6, 12));
+    fn the_halo_floats_and_spins() {
         assert_ne!(float("ring", 0.0).rotation, float("ring", 1.0).rotation);
+        assert_eq!(float("other", 1.0), Motion::REST);
     }
 }

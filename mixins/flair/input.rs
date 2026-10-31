@@ -67,7 +67,7 @@ pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()
 
 fn click(game: &mut Game<'_>, flair: &mut State, layout: Layout, cursor: [f32; 2]) {
     let shown = flair.shown();
-    let worn: Vec<(usize, bool)> = flair.wearing().iter().map(|(slot, _)| (*slot as usize, glue::toggles(*slot))).collect();
+    let worn: Vec<(usize, bool, bool)> = flair.wearing().iter().map(|(slot, _)| (*slot as usize, glue::toggles(*slot), *slot == Slot::Aura)).collect();
     match layout.hit(cursor, SLOTS.len(), shown.len(), flair.scroll, &worn) {
         Hit::Panel => return,
         Hit::Preview => {
@@ -82,6 +82,7 @@ fn click(game: &mut Game<'_>, flair: &mut State, layout: Layout, cursor: [f32; 2
         }
         Hit::Remove(slot) => flair.equip(game, SLOTS[slot], None),
         Hit::FirstPerson(slot) => flair.toggle_first_person(game, SLOTS[slot]),
+        Hit::Theme(_) => flair.next_theme(game),
         Hit::Card(i) => {
             let item = &flair.entries[shown[i]].item;
             let (slot, key): (Slot, String) = (item.slot, item.key.clone());

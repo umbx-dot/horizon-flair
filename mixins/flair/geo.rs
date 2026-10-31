@@ -70,6 +70,7 @@ fn parse_cube(c: &Value, mirror: bool) -> Result<Cube, String> {
         uv,
         inflate: number(&c["inflate"], 0.0),
         mirror: c["mirror"].as_bool().unwrap_or(mirror),
+        layer: 0,
     })
 }
 

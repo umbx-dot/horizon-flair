@@ -110,6 +110,30 @@ name = "umbx_flair_input"
 source = "input.rs"
 
 [[module]]
+id = "bandanas"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_bandanas"
+source = "bandanas.rs"
+
+[[module]]
+id = "hd_capes"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_hd_capes"
+source = "hd_capes.rs"
+
+[[module]]
+id = "critters"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_critters"
+source = "critters.rs"
+
+[[module]]
+id = "text"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_text"
+source = "text.rs"
+
+[[module]]
 id = "glue"
 file = "crates/horizon-client/src/game.rs"
 name = "umbx_flair_glue"
@@ -183,6 +207,7 @@ bindings = [
   { name = "camera", ty = "glam::DVec3", value = "camera" },
   { name = "alpha", ty = "f64", value = "alpha" },
   { name = "light", ty = "u32", value = "light" },
+  { name = "lit", ty = "bool", value = "lit" },
   { name = "out", ty = "&mut Vec<horizon_client::mesher::Vertex>", value = "&mut *out" },
 ]
 

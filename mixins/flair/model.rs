@@ -11,6 +11,7 @@ pub struct Cube {
     pub uv: Uv,
     pub inflate: f32,
     pub mirror: bool,
+    pub layer: usize,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -58,7 +59,7 @@ impl Motion {
 }
 
 pub fn cube(from: [f32; 3], size: [f32; 3], uv: [f32; 2]) -> Cube {
-    Cube { from, size, uv: Uv::Box(uv), inflate: 0.0, mirror: false }
+    Cube { from, size, uv: Uv::Box(uv), inflate: 0.0, mirror: false, layer: 0 }
 }
 
 pub fn bone(name: &str, pivot: [f32; 3], cubes: Vec<Cube>) -> Bone {
@@ -68,6 +69,10 @@ pub fn bone(name: &str, pivot: [f32; 3], cubes: Vec<Cube>) -> Bone {
 impl Cube {
     pub fn inflated(self, inflate: f32) -> Self {
         Cube { inflate, ..self }
+    }
+
+    pub fn faced(from: [f32; 3], size: [f32; 3], rects: [[f32; 4]; 6], layer: usize) -> Self {
+        Cube { from, size, uv: Uv::Faces(rects), inflate: 0.0, mirror: false, layer }
     }
 
     fn rects(&self) -> [[f32; 4]; 6] {
@@ -154,14 +159,30 @@ pub fn faces(cube: &Cube, pivot: [f32; 3], texture: [f32; 2]) -> Vec<Face> {
         .collect()
 }
 
-pub fn bake(bone: &Bone, parent: [f32; 3], texture: [f32; 2]) -> Baked {
+pub const NONE: [f32; 4] = [f32::NAN; 4];
+
+pub fn only(face: usize, rect: [f32; 4]) -> [[f32; 4]; 6] {
+    std::array::from_fn(|i| if i == face { rect } else { NONE })
+}
+
+pub fn layers(bones: &[Bone]) -> usize {
+    let mut most = 0;
+    let mut stack: Vec<&Bone> = bones.iter().collect();
+    while let Some(bone) = stack.pop() {
+        stack.extend(&bone.children);
+        most = bone.cubes.iter().map(|c| c.layer + 1).fold(most, usize::max);
+    }
+    most
+}
+
+pub fn bake(bone: &Bone, parent: [f32; 3], texture: [f32; 2], layer: usize) -> Baked {
     let p = bone.pivot;
     let r = bone.rotation;
     Baked {
         name: bone.name.clone(),
         pose: [p[0] - parent[0], p[1] - parent[1], p[2] - parent[2], r[0], r[1], r[2], 1.0, 1.0, 1.0],
-        faces: bone.cubes.iter().flat_map(|c| faces(c, p, texture)).collect(),
-        children: bone.children.iter().map(|c| bake(c, p, texture)).collect(),
+        faces: bone.cubes.iter().filter(|c| c.layer == layer).flat_map(|c| faces(c, p, texture)).collect(),
+        children: bone.children.iter().map(|c| bake(c, p, texture, layer)).collect(),
     }
 }
 
@@ -264,7 +285,9 @@ mod tests {
     #[test]
     fn bake_makes_poses_relative_to_parents() {
         let tree = bone("a", [0.0, -4.0, 0.0], vec![cube([-1.0, -5.0, -1.0], [2.0; 3], [0.0, 0.0])]).with(vec![bone("b", [2.0, -6.0, 0.0], Vec::new())]);
-        let baked = bake(&tree, [0.0; 3], [64.0, 64.0]);
+        let baked = bake(&tree, [0.0; 3], [64.0, 64.0], 0);
+        assert!(bake(&tree, [0.0; 3], [64.0, 64.0], 1).faces.is_empty());
+        assert_eq!(layers(std::slice::from_ref(&tree)), 1);
         assert_eq!(&baked.pose[..3], &[0.0, -4.0, 0.0]);
         assert_eq!(&baked.children[0].pose[..3], &[2.0, -2.0, 0.0]);
         assert_eq!(baked.faces[0].vertices[0][1], -1.0);

@@ -1,8 +1,6 @@
-use super::umbx_flair_capes as capes;
 use super::umbx_flair_catalog::{self as catalog, CARD_H, CARD_W, Layout, clip, inside};
-use super::umbx_flair_glue::{self as glue, CAPE, State};
-use super::umbx_flair_items::{SLOTS, Slot};
-use super::umbx_flair_paint::Canvas;
+use super::umbx_flair_glue::{self as glue, State};
+use super::umbx_flair_items::{SLOTS, Slot, THEMES};
 use super::umbx_flair_preview::{self as preview, Look};
 use super::umbx_flair_render as render;
 use super::{Game, Screen};
@@ -26,7 +24,6 @@ const CHIP_OFF: u32 = 0xFF2C_2C3C;
 const ACCENT: u32 = 0xFF9B_6BFF;
 const TEXT: u32 = 0xEC_ECF4;
 const MUTED: u32 = 0x86_869A;
-const PIXEL: f32 = 3.0;
 const TITLE_BUTTON_Y: f32 = 96.0;
 const PAUSE_GRID: [f32; 2] = [212.0, 166.0];
 const PAUSE_LINKS: f32 = 24.0;
@@ -75,13 +72,12 @@ pub(super) fn draw(game: &Game<'_>, batch: &mut HudBatch) {
     frame(game, batch, &flair, &layout, cursor);
     cards(game, batch, &flair, &layout, cursor);
     wearing(game, batch, &flair, &layout, cursor);
-    let back = flair.worn(Slot::Back).is_some();
-    let look = Look {
-        yaw: flair.preview_yaw,
-        seconds: flair.seconds(),
-        effect: flair.worn(Slot::Aura).and_then(|i| flair.entries[i].item.effect),
-        cape: if flair.worn(Slot::Cape).is_some() && !back && game.gui.atlas.sprites.contains_key(CAPE) { Some(CAPE.to_owned()) } else { game.player_model.as_ref().and_then(|m| m.cape.clone()).filter(|_| !back) },
-    };
+    let mut strokes = Vec::new();
+    if let Some(i) = flair.worn(Slot::Aura) {
+        flair.entries[i].item.stroke(f64::from(flair.seconds()), f64::from(flair.preview_yaw), flair.theme, &mut strokes);
+    }
+    let covered = flair.worn(Slot::Cape).is_some() || flair.worn(Slot::Back).is_some();
+    let look = Look { yaw: flair.preview_yaw, strokes, covered };
     drop(flair);
     let [x, y, w, h] = layout.side;
     match layout.preview {
@@ -147,7 +143,7 @@ fn cards(game: &Game<'_>, batch: &mut HudBatch, flair: &State, layout: &Layout, 
         centered(game, batch, "Nothing here yet", [content[0], content[1] + content[3] / 2.0 - 4.0, content[2]], MUTED);
         return;
     }
-    let (ms, seconds) = (flair.millis(), flair.seconds());
+    let seconds = flair.seconds();
     for index in layout.visible(shown.len(), flair.scroll) {
         let entry = &flair.entries[shown[index]];
         let card = layout.card(index, flair.scroll);
@@ -162,10 +158,8 @@ fn cards(game: &Game<'_>, batch: &mut HudBatch, flair: &State, layout: &Layout, 
             }
         }
         let icon = [card[0] + ICON_INSET, card[1] + ICON_INSET, CARD_W - 2.0 * ICON_INSET, CARD_H - NAME_H - 2.0 * ICON_INSET];
-        if entry.item.slot == Slot::Cape {
-            cape_preview(game, batch, &entry.item.canvas(ms), icon, content);
-        } else if let Some(area) = clip(icon, content) {
-            render::icon(game, batch, entry, seconds, icon, area);
+        if let Some(area) = clip(icon, content) {
+            render::icon(game, batch, entry, seconds, flair.theme, icon, area);
         }
         let label = card[1] + CARD_H - NAME_H + 2.0;
         if label >= content[1] && label + 9.0 <= content[1] + content[3] {
@@ -199,7 +193,8 @@ fn wearing(game: &Game<'_>, batch: &mut HudBatch, flair: &State, layout: &Layout
         }
         game.native_text(batch, SHORT[slot as usize], [row[0] + 3.0, row[1] + 3.0], MUTED, false);
         let toggles = glue::toggles(slot);
-        let room = row[2] - 34.0 - if toggles { 20.0 } else { 0.0 };
+        let themed = slot == Slot::Aura;
+        let room = row[2] - 34.0 - if toggles { 20.0 } else { 0.0 } - if themed { 16.0 } else { 0.0 };
         let hidden = slot == Slot::Cape && back;
         let name = fitted(game, &flair.entries[index].item.name, room);
         game.native_text(batch, &name, [row[0] + 31.0, row[1] + 3.0], if hidden { MUTED } else { TEXT }, false);
@@ -208,6 +203,13 @@ fn wearing(game: &Game<'_>, batch: &mut HudBatch, flair: &State, layout: &Layout
             let on = flair.first_person[slot as usize];
             game.native_fill(batch, chip, if on { ACCENT } else { CHIP_OFF });
             centered(game, batch, "1P", [chip[0], chip[1] + 2.0, chip[2]], if on { TEXT } else { MUTED });
+        }
+        if themed {
+            let chip = layout.theme(k);
+            let colors = if flair.theme == 0 { flair.entries[index].item.colors } else { THEMES[flair.theme].1 };
+            game.native_fill(batch, chip, if inside(chip, cursor) { 0xFFF0_F0F8 } else { BORDER });
+            game.native_fill(batch, [chip[0] + 1.0, chip[1] + 1.0, 5.0, 10.0], 0xFF00_0000 | colors[0]);
+            game.native_fill(batch, [chip[0] + 6.0, chip[1] + 1.0, 5.0, 10.0], 0xFF00_0000 | colors[1]);
         }
         let remove = layout.remove(k);
         let over = inside(remove, cursor);
@@ -226,19 +228,6 @@ fn switch(game: &Game<'_>, batch: &mut HudBatch, [x, y]: [f32; 2], on: bool) {
 fn fill_clipped(game: &Game<'_>, batch: &mut HudBatch, rect: [f32; 4], to: [f32; 4], argb: u32) {
     if let Some(r) = clip(rect, to) {
         game.native_fill(batch, r, argb);
-    }
-}
-
-fn cape_preview(game: &Game<'_>, batch: &mut HudBatch, canvas: &Canvas, area: [f32; 4], to: [f32; 4]) {
-    let px = area[0] + ((area[2] - capes::FACE_W as f32 * PIXEL) / 2.0).floor();
-    let py = area[1] + ((area[3] - capes::FACE_H as f32 * PIXEL) / 2.0).floor();
-    for v in 0..capes::FACE_H {
-        for u in 0..capes::FACE_W {
-            let argb = capes::front(canvas, u, v);
-            if argb >> 24 != 0 {
-                fill_clipped(game, batch, [px + u as f32 * PIXEL, py + v as f32 * PIXEL, PIXEL, PIXEL], to, argb);
-            }
-        }
     }
 }
 

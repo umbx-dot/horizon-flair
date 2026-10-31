@@ -1,3 +1,4 @@
+use super::umbx_flair_capes as capes;
 use super::umbx_flair_geo as geo;
 use super::umbx_flair_items::{Attach, Item, Moves, Paint, Slot};
 use super::umbx_flair_paint::Canvas;
@@ -57,7 +58,7 @@ fn cape(path: &Path) -> Result<Item, String> {
     let (width, height, rgba) = decode(path)?;
     let frames = texture_file::cape_frames(width, height, &rgba)?;
     let name = path.file_stem().unwrap_or_default().to_string_lossy();
-    Ok(Item::new(&format!("custom:{}", file_name(path)), &name, Slot::Cape, Vec::new(), painted(frames, path), Moves::Still))
+    Ok(Item::new(&format!("custom:{}", file_name(path)), &name, Slot::Cape, capes::chain(capes::classic), painted(frames, path), Moves::Still))
 }
 
 fn cosmetic(folder: &Path) -> Result<Item, String> {
@@ -70,7 +71,7 @@ fn cosmetic(folder: &Path) -> Result<Item, String> {
     let texture = find(".png").ok_or("no .png texture")?;
     let (width, height, rgba) = decode(texture)?;
     let (bones, frames) = if slot == Slot::Cape {
-        (Vec::new(), texture_file::cape_frames(width, height, &rgba)?)
+        (capes::chain(capes::classic), texture_file::cape_frames(width, height, &rgba)?)
     } else {
         let (bones, size) = geo::geometry(&read(find(".geo.json").ok_or("no .geo.json model")?)?)?;
         (bones, texture_file::sheet_frames(width, height, &rgba, size[1] as u32)?)

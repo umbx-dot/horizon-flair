@@ -59,15 +59,30 @@ pub struct Stroke {
     pub width: f32,
 }
 
-pub type Effect = fn(f64, f64, &mut Vec<Stroke>);
+pub type Effect = fn(f64, f64, [u32; 2], &mut Vec<Stroke>);
 pub type Painter = Box<dyn Fn(u32) -> Canvas + Send + Sync>;
 pub type Mover = Box<dyn Fn(&str, f32) -> Motion + Send + Sync>;
+
+pub type Layered = Box<dyn Fn(u32) -> Vec<Canvas> + Send + Sync>;
 
 pub enum Paint {
     Still(Canvas),
     Live(Painter),
     Frames { frames: Vec<Canvas>, ticks: u32 },
+    Layers { count: usize, paint: Layered },
 }
+
+pub const THEMES: [(&str, [u32; 2]); 9] = [
+    ("Default", [0, 0]),
+    ("White", [0xFF_FFFF, 0xC8_D8FF]),
+    ("Gold", [0xFF_D86B, 0xFF_F3C4]),
+    ("Crimson", [0xE0_263A, 0xFF_8A5C]),
+    ("Emerald", [0x3C_E88A, 0xB8_FFD8]),
+    ("Ocean", [0x2E_9BFF, 0x7C_F2FF]),
+    ("Violet", [0x9B_6BFF, 0xE0_9CFF]),
+    ("Rose", [0xFF_6BA8, 0xFF_D0E4]),
+    ("Sunset", [0xFF_7A2E, 0xFF_3C8C]),
+];
 
 pub enum Moves {
     Still,
@@ -85,15 +100,30 @@ pub struct Item {
     pub paint: Paint,
     pub moves: Moves,
     pub effect: Option<Effect>,
+    pub colors: [u32; 2],
 }
 
 impl Item {
     pub fn new(key: &str, name: &str, slot: Slot, bones: Vec<Bone>, paint: Paint, moves: Moves) -> Self {
-        Item { key: key.into(), name: name.into(), slot, attach: slot.attach(), glow: false, bones, paint, moves, effect: None }
+        Item { key: key.into(), name: name.into(), slot, attach: slot.attach(), glow: false, bones, paint, moves, effect: None, colors: [0xFF_FFFF; 2] }
     }
 
-    pub fn with_effect(self, effect: Effect) -> Self {
-        Item { effect: Some(effect), ..self }
+    pub fn with_effect(self, effect: Effect, colors: [u32; 2]) -> Self {
+        Item { effect: Some(effect), colors, ..self }
+    }
+
+    pub fn stroke(&self, seconds: f64, yaw: f64, theme: usize, out: &mut Vec<Stroke>) {
+        if let Some(effect) = self.effect {
+            let colors = if theme == 0 { self.colors } else { THEMES[theme % THEMES.len()].1 };
+            effect(seconds, yaw, colors, out);
+        }
+    }
+
+    pub fn layer_count(&self) -> usize {
+        match &self.paint {
+            Paint::Layers { count, .. } => *count,
+            _ => 1,
+        }
     }
 
     pub fn textured(&self) -> bool {
@@ -107,16 +137,17 @@ impl Item {
     pub fn frame(&self, ms: u128) -> usize {
         match &self.paint {
             Paint::Still(_) => 0,
-            Paint::Live(_) => (ms / FRAME_MS) as usize,
+            Paint::Live(_) | Paint::Layers { .. } => (ms / FRAME_MS) as usize,
             Paint::Frames { frames, ticks } => (ms / (u128::from(*ticks) * TICK_MS)) as usize % frames.len(),
         }
     }
 
-    pub fn canvas(&self, ms: u128) -> Cow<'_, Canvas> {
+    pub fn canvases(&self, ms: u128) -> Cow<'_, [Canvas]> {
         match &self.paint {
-            Paint::Still(canvas) => Cow::Borrowed(canvas),
-            Paint::Live(paint) => Cow::Owned(paint(self.frame(ms) as u32)),
-            Paint::Frames { frames, .. } => Cow::Borrowed(&frames[self.frame(ms)]),
+            Paint::Still(canvas) => Cow::Borrowed(std::slice::from_ref(canvas)),
+            Paint::Live(paint) => Cow::Owned(vec![paint(self.frame(ms) as u32)]),
+            Paint::Frames { frames, .. } => Cow::Borrowed(std::slice::from_ref(&frames[self.frame(ms)])),
+            Paint::Layers { paint, .. } => Cow::Owned(paint(self.frame(ms) as u32)),
         }
     }
 

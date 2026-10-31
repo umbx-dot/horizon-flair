@@ -1,5 +1,5 @@
 use super::Game;
-use super::umbx_flair_items::Effect;
+use super::umbx_flair_items::Stroke;
 use super::umbx_flair_render::{self as render, FULL_LIGHT};
 use glam::{DVec3, Mat4, Vec3};
 
@@ -13,9 +13,8 @@ const STROKE_SCALE: f32 = 0.004;
 
 pub(super) struct Look {
     pub(super) yaw: f32,
-    pub(super) seconds: f32,
-    pub(super) effect: Option<Effect>,
-    pub(super) cape: Option<String>,
+    pub(super) strokes: Vec<Stroke>,
+    pub(super) covered: bool,
 }
 
 pub(super) fn player(game: &Game<'_>, batch: &mut horizon_client::hud::HudBatch, rect: [f32; 4], look: &Look) {
@@ -31,7 +30,9 @@ pub(super) fn player(game: &Game<'_>, batch: &mut horizon_client::hud::HudBatch,
     m.previous_head_yaw = look.yaw;
     m.head_pitch = 0.0;
     m.previous_head_pitch = 0.0;
-    m.cape = look.cape.clone();
+    if look.covered {
+        m.cape = None;
+    }
     m.position.y += CROUCH_RAISE * f64::from(u8::from(m.extra.crouching));
     m.previous = m.position;
     let camera = DVec3::new(m.position.x, m.position.y, m.position.z);
@@ -56,10 +57,6 @@ pub(super) fn player(game: &Game<'_>, batch: &mut horizon_client::hud::HudBatch,
         * Mat4::from_rotation_z(std::f32::consts::PI);
     let mut quads = Vec::new();
     render::model_quads(&verts, gui, true, &mut quads);
-    if let Some(effect) = look.effect {
-        let mut strokes = Vec::new();
-        effect(f64::from(look.seconds), f64::from(look.yaw), &mut strokes);
-        render::stroke_quads(game, &strokes, gui, size * STROKE_SCALE, &mut quads);
-    }
+    render::stroke_quads(game, &look.strokes, gui, size * STROKE_SCALE, &mut quads);
     render::flush(batch, quads, rect);
 }

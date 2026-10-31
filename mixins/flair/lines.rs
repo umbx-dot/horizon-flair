@@ -16,21 +16,25 @@ pub(super) fn lines(game: &Game<'_>, alpha: f64, size: [u32; 2]) -> ControlFlow<
     if DRAWING.get() || !game.native_on(catalog::ID) || game.own_invisible() {
         return ControlFlow::Continue(());
     }
-    let (effect, seconds) = {
+    let Some(m) = game.player_model.as_ref() else { return ControlFlow::Continue(()) };
+    let yaw = m.previous_body_yaw + (m.body_yaw - m.previous_body_yaw) * alpha as f32;
+    let mut strokes = Vec::new();
+    {
         let flair = glue::state();
         let shown = game.player_model_shown() || flair.first_person[Slot::Aura as usize];
-        (flair.worn(Slot::Aura).filter(|_| shown).and_then(|i| flair.entries[i].item.effect), flair.seconds())
-    };
-    let (Some(effect), Some(m)) = (effect, game.player_model.as_ref()) else { return ControlFlow::Continue(()) };
+        if let Some(i) = flair.worn(Slot::Aura).filter(|_| shown) {
+            flair.entries[i].item.stroke(f64::from(flair.seconds()), f64::from(yaw), flair.theme, &mut strokes);
+        }
+    }
+    if strokes.is_empty() {
+        return ControlFlow::Continue(());
+    }
     DRAWING.set(true);
     let mut lines = game.fishing_line(alpha, size);
     DRAWING.set(false);
     let lerp = |a: f64, b: f64| a + (b - a) * alpha;
     let feet = [lerp(m.previous.x, m.position.x), lerp(m.previous.y, m.position.y), lerp(m.previous.z, m.position.z)];
-    let yaw = m.previous_body_yaw + (m.body_yaw - m.previous_body_yaw) * alpha as f32;
     let scale = (size[0] as f32 / REFERENCE_WIDTH).max(1.0);
-    let mut strokes = Vec::new();
-    effect(f64::from(seconds), f64::from(yaw), &mut strokes);
     let at = |p: [f64; 3]| std::array::from_fn(|i| feet[i] + p[i]);
     lines.extend(strokes.iter().map(|s| Line { start: at(s.a), end: at(s.b), color: s.color, width: s.width * scale }));
     ControlFlow::Break(lines)

@@ -2,7 +2,7 @@ use super::umbx_flair_items::{Item, Moves, Paint, Slot, wave};
 use super::umbx_flair_model::{Bone, Motion, bone, cube};
 use super::umbx_flair_paint::{Canvas, Side, mix, noise, opaque};
 
-pub const CAT_SEAT: [f32; 3] = [7.0, 0.0, 0.0];
+pub const CAT_SEAT: [f32; 3] = [7.5, 0.0, 0.0];
 pub const DRAGON_SEAT: [f32; 3] = [7.5, 0.0, 0.0];
 
 struct Coat {
@@ -22,7 +22,7 @@ pub fn items() -> Vec<Item> {
     ]
 }
 
-fn perched(bones: Vec<Bone>, seat: [f32; 3]) -> Vec<Bone> {
+pub fn perched(bones: Vec<Bone>, seat: [f32; 3]) -> Vec<Bone> {
     vec![bone("pet", [0.0; 3], Vec::new()).with(bones).shifted(seat)]
 }
 

@@ -4,7 +4,8 @@ fn flair_worn(
     camera: glam::DVec3,
     alpha: f64,
     light: u32,
+    lit: bool,
     out: &mut Vec<horizon_client::mesher::Vertex>,
 ) {
-    crate::game::umbx_flair_render::worn(game, mob, camera, alpha, light, out);
+    crate::game::umbx_flair_render::worn(game, mob, camera, alpha, light, lit, out);
 }

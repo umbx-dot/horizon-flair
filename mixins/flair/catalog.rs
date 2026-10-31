@@ -26,6 +26,7 @@ pub enum Hit {
     Card(usize),
     Remove(usize),
     FirstPerson(usize),
+    Theme(usize),
     Preview,
     Panel,
     Outside,
@@ -124,7 +125,12 @@ impl Layout {
         [r[0] + r[2] - 33.0, r[1] + 1.0, 18.0, 12.0]
     }
 
-    pub fn hit(&self, p: [f32; 2], tabs: usize, cards: usize, scroll: f32, worn: &[(usize, bool)]) -> Hit {
+    pub fn theme(&self, k: usize) -> [f32; 4] {
+        let r = self.wearing_row(k);
+        [r[0] + r[2] - 49.0, r[1] + 1.0, 12.0, 12.0]
+    }
+
+    pub fn hit(&self, p: [f32; 2], tabs: usize, cards: usize, scroll: f32, worn: &[(usize, bool, bool)]) -> Hit {
         if !inside(self.panel, p) {
             return Hit::Outside;
         }
@@ -137,12 +143,15 @@ impl Layout {
         if let Some(i) = (0..tabs).find(|i| inside(self.tab(*i), p)) {
             return Hit::Tab(i);
         }
-        for (k, (slot, toggles)) in worn.iter().enumerate() {
+        for (k, (slot, toggles, themed)) in worn.iter().enumerate() {
             if inside(self.remove(k), p) {
                 return Hit::Remove(*slot);
             }
             if *toggles && inside(self.first_person(k), p) {
                 return Hit::FirstPerson(*slot);
+            }
+            if *themed && inside(self.theme(k), p) {
+                return Hit::Theme(*slot);
             }
         }
         if self.preview.is_some_and(|r| inside(r, p)) {
@@ -195,7 +204,7 @@ mod tests {
     #[test]
     fn hits_find_every_control() {
         let layout = Layout::new(640.0, 360.0, true);
-        let worn = [(1, false), (4, true)];
+        let worn = [(1, false, false), (4, true, true)];
         assert_eq!(layout.hit(center(layout.card(0, 0.0)), 5, 20, 0.0, &worn), Hit::Card(0));
         assert_eq!(layout.hit(center(layout.card(layout.columns, 30.0)), 5, 20, 30.0, &worn), Hit::Card(layout.columns));
         assert_eq!(layout.hit(center(layout.tab(2)), 5, 20, 0.0, &worn), Hit::Tab(2));
@@ -204,6 +213,7 @@ mod tests {
         assert_eq!(layout.hit(center(layout.remove(0)), 5, 20, 0.0, &worn), Hit::Remove(1));
         assert_eq!(layout.hit(center(layout.first_person(1)), 5, 20, 0.0, &worn), Hit::FirstPerson(4));
         assert_eq!(layout.hit(center(layout.first_person(0)), 5, 20, 0.0, &worn), Hit::Panel);
+        assert_eq!(layout.hit(center(layout.theme(1)), 5, 20, 0.0, &worn), Hit::Theme(4));
         assert_eq!(layout.hit(center(layout.preview.unwrap()), 5, 20, 0.0, &worn), Hit::Preview);
         assert_eq!(layout.hit([1.0, 1.0], 5, 20, 0.0, &worn), Hit::Outside);
     }

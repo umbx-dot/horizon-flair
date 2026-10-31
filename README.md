@@ -21,13 +21,15 @@ Hats grow a little when you wear a helmet, so they always sit on top of it. Wing
 
 | Tab | Items |
 |---|---|
-| Capes | Royal, Nebula, Ember, Prism, Frost, Tide, Aurora, Great Wave, Sakura, Storm, Code Rain, Synthwave |
-| Hats | Shinobi, Ronin, Shadow, Sakura, Galaxy and Neon bandanas, Top Hat, Halo, Crown, Devil Horns |
-| Back | Angel Wings, Dragon Wings, Fairy Wings |
-| Pets | Cat, Black Cat, Mini Dragon, Void Dragon |
-| Auras | Halo Rings, Streaks, Orbits, Light Wings, Helix, Fire Ring, Lava Ring, Storm Ring, Vortex |
+| Capes | HD: Celestial, Inferno, Thunderstorm, Borealis. Classic: Royal, Nebula, Ember, Prism, Frost, Tide, Aurora, Great Wave, Sakura, Storm, Code Rain, Synthwave |
+| Hats | Bandanas: Shinobi, Crimson, Shadow, Dragon, Sakura, Galaxy, Neon. Top Hat, Halo, Crown, Devil Horns |
+| Back | Angel Wings, Dragon Wings, Phoenix Wings, Katana, Jetpack |
+| Pets | Cat, Black Cat, Fox, Owl, Slime, Bee, Mini Dragon, Void Dragon |
+| Auras | Halo Rings, Streaks, Orbits, Light Wings, Helix, Rune Circle, Sakura Petals, Spirit Flames, Star Crown, Fire Ring, Lava Ring, Storm Ring, Vortex |
 
-Everything is animated: capes shift and shimmer, the bandanas carry a line of brush script that runs around your forehead while their tails flow behind you, wings flap, pets look around and wag their tails, and auras are drawn with glowing lines that circle, rise and spark around you.
+Every cape hangs as cloth: it lifts behind you when you run, swings when you strafe and ripples while you stand. The HD capes are painted at 128x256 so they show no Minecraft pixels. The bandanas carry Japanese script in a real font that runs around your forehead, with animated light, glow and petals, while their tails flow behind you. Wings flap, pets look around, hop or buzz, and auras are drawn with glowing lines that circle, rise and spark around you. Click the colour chip next to your aura in the Wearing list to change its colours.
+
+Bandanas use a Japanese font from your system (Yu Gothic on Windows, Hiragino on macOS, Noto Sans CJK on Linux); without one they fall back to built in pixel glyphs.
 
 ## Your own cosmetics
 

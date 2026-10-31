@@ -27,6 +27,7 @@ impl Canvas {
         }
     }
 
+    #[cfg(test)]
     pub fn get(&self, x: usize, y: usize) -> u32 {
         let i = (y * SIZE + x) * 4;
         u32::from_be_bytes([self.0[i + 3], self.0[i], self.0[i + 1], self.0[i + 2]])
@@ -95,6 +96,67 @@ pub fn noise(a: i64, b: i64) -> f64 {
     (h >> 11) as f64 / (1u64 << 53) as f64
 }
 
+pub fn smooth(x: f64, y: f64, seed: i64) -> f64 {
+    let (x0, y0) = (x.floor(), y.floor());
+    let (fx, fy) = (x - x0, y - y0);
+    let (sx, sy) = (fx * fx * (3.0 - 2.0 * fx), fy * fy * (3.0 - 2.0 * fy));
+    let (i, j) = (x0 as i64, y0 as i64);
+    let corner = |a: i64, b: i64| noise(a.wrapping_mul(7919).wrapping_add(seed), b);
+    let top = corner(i, j) + (corner(i + 1, j) - corner(i, j)) * sx;
+    let bottom = corner(i, j + 1) + (corner(i + 1, j + 1) - corner(i, j + 1)) * sx;
+    top + (bottom - top) * sy
+}
+
+pub fn fbm(x: f64, y: f64, seed: i64, octaves: u32) -> f64 {
+    let (mut sum, mut amp, mut freq, mut norm) = (0.0, 0.5, 1.0, 0.0);
+    for o in 0..octaves {
+        sum += amp * smooth(x * freq, y * freq, seed + i64::from(o) * 101);
+        norm += amp;
+        amp *= 0.5;
+        freq *= 2.0;
+    }
+    sum / norm
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Mask {
+    pub width: usize,
+    pub height: usize,
+    pub alpha: Vec<u8>,
+}
+
+impl Mask {
+    pub fn new(width: usize, height: usize) -> Self {
+        Mask { width, height, alpha: vec![0; width * height] }
+    }
+
+    pub fn at(&self, x: usize, y: usize) -> f64 {
+        f64::from(self.alpha[(y % self.height) * self.width + x % self.width]) / 255.0
+    }
+
+    pub fn blurred(&self, radius: usize) -> Mask {
+        let mut out = Mask::new(self.width, self.height);
+        let r = radius as isize;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let mut sum = 0u32;
+                let mut count = 0u32;
+                for dy in -r..=r {
+                    for dx in -r..=r {
+                        let (px, py) = (x as isize + dx, y as isize + dy);
+                        if py >= 0 && (py as usize) < self.height {
+                            sum += u32::from(self.alpha[py as usize * self.width + px.rem_euclid(self.width as isize) as usize]);
+                            count += 1;
+                        }
+                    }
+                }
+                out.alpha[y * self.width + x] = (sum / count.max(1)) as u8;
+            }
+        }
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,6 +181,18 @@ mod tests {
         assert_eq!(canvas.get(17, 9), opaque(Side::Left as u32));
         assert_eq!(canvas.get(25, 9), opaque(Side::Back as u32));
         assert_eq!(canvas.get(1, 1), 0);
+    }
+
+    #[test]
+    fn smooth_noise_is_continuous_and_masks_blur() {
+        assert!((smooth(3.0, 4.0, 1) - smooth(3.0001, 4.0, 1)).abs() < 0.01);
+        assert!((0..200).all(|i| (0.0..=1.0).contains(&fbm(i as f64 * 0.37, i as f64 * 0.11, 3, 4))));
+        let mut mask = Mask::new(8, 4);
+        mask.alpha[9] = 255;
+        assert_eq!(mask.at(1, 1), 1.0);
+        assert_eq!(mask.at(9, 5), 1.0);
+        let soft = mask.blurred(1);
+        assert!(soft.alpha[10] > 0 && soft.alpha[10] < 255);
     }
 
     #[test]

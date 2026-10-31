@@ -1,9 +1,21 @@
 use super::umbx_flair_items::{Item, Moves, Paint, Slot};
+use super::umbx_flair_model::{Bone, Cube, NONE, bone};
 use super::umbx_flair_paint::{Canvas, hue, mix, noise, opaque, palette};
 
 pub const STYLES: [&str; 12] = ["Royal", "Nebula", "Ember", "Prism", "Frost", "Tide", "Aurora", "Great Wave", "Sakura", "Storm", "Code Rain", "Synthwave"];
 pub const FACE_W: usize = 10;
 pub const FACE_H: usize = 16;
+pub const SEGMENTS: usize = 8;
+pub const SEGMENT_H: f32 = 2.0;
+pub const CAPE_Z: f32 = 2.1;
+const HALF_W: f32 = 5.0;
+const REST_TILT: f32 = 0.08;
+const LIFT_BASE: f32 = 0.1;
+const LIFT_GROWTH: f32 = 0.025;
+const RIPPLE: f32 = 0.035;
+const RIPPLE_SPEED: f32 = 2.6;
+const RIPPLE_STEP: f32 = 0.7;
+const SIDE_SWAY: f32 = 0.5;
 const CAPE_ROWS: usize = 32;
 const WHITE: u32 = 0xFF_FFFF;
 const BLACK: u32 = 0;
@@ -14,8 +26,55 @@ pub fn items() -> Vec<Item> {
     STYLES
         .iter()
         .enumerate()
-        .map(|(style, name)| Item::new(&name.to_lowercase().replace(' ', "_"), name, Slot::Cape, Vec::new(), Paint::Live(Box::new(move |frame| cape(style, frame))), Moves::Still))
+        .map(|(style, name)| Item::new(&name.to_lowercase().replace(' ', "_"), name, Slot::Cape, chain(classic), Paint::Live(Box::new(move |frame| cape(style, frame))), Moves::Still))
         .collect()
+}
+
+pub fn bend([lift, side]: [f32; 2], seconds: f32, i: usize) -> [f32; 3] {
+    let along = i as f32 / SEGMENTS as f32;
+    let rest = if i == 0 { REST_TILT } else { 0.0 };
+    let ripple = RIPPLE * (1.0 + lift) * (seconds * RIPPLE_SPEED - i as f32 * RIPPLE_STEP).sin();
+    [rest + lift * (LIFT_BASE + LIFT_GROWTH * i as f32) + ripple, 0.0, side * SIDE_SWAY * along]
+}
+
+pub fn chain(cubes: impl Fn(usize) -> Vec<Cube>) -> Vec<Bone> {
+    let mut below: Option<Bone> = None;
+    for i in (0..SEGMENTS).rev() {
+        let mut segment = bone(&format!("seg{i}"), [0.0, SEGMENT_H * i as f32, CAPE_Z], cubes(i));
+        segment.children.extend(below.take());
+        below = Some(segment);
+    }
+    below.into_iter().collect()
+}
+
+fn segment_box(i: usize, x: f32, width: f32) -> ([f32; 3], [f32; 3]) {
+    ([x, SEGMENT_H * i as f32, CAPE_Z], [width, SEGMENT_H, 1.0])
+}
+
+pub fn classic(i: usize) -> Vec<Cube> {
+    let row = 1.0 + SEGMENT_H * i as f32;
+    let next = row + SEGMENT_H;
+    let top = if i == 0 { [1.0, 0.0, 11.0, 1.0] } else { NONE };
+    let bottom = if i + 1 == SEGMENTS { [11.0, 0.0, 21.0, 1.0] } else { NONE };
+    let (from, size) = segment_box(i, -HALF_W, 2.0 * HALF_W);
+    vec![Cube::faced(from, size, [top, bottom, [0.0, row, 1.0, next], [12.0, row, 22.0, next], [11.0, row, 12.0, next], [1.0, row, 11.0, next]], 0)]
+}
+
+pub fn tiled(i: usize) -> Vec<Cube> {
+    let half = (i % 2) as f32 * 32.0;
+    let outer = [0.0, half, 64.0, half + 32.0];
+    let lining = [0.0, 0.0, 8.0, 8.0];
+    let mut cubes: Vec<Cube> = (0..2)
+        .map(|c| {
+            let (from, size) = segment_box(i, if c == 0 { 0.0 } else { -HALF_W }, HALF_W);
+            Cube::faced(from, size, super::umbx_flair_model::only(5, outer), c + 2 * (i / 2))
+        })
+        .collect();
+    let (from, size) = segment_box(i, -HALF_W, 2.0 * HALF_W);
+    let top = if i == 0 { lining } else { NONE };
+    let bottom = if i + 1 == SEGMENTS { lining } else { NONE };
+    cubes.push(Cube::faced(from, size, [top, bottom, lining, lining, lining, NONE], 8));
+    cubes
 }
 
 pub fn cape(style: usize, frame: u32) -> Canvas {
@@ -34,10 +93,6 @@ pub fn cape(style: usize, frame: u32) -> Canvas {
         }
     }
     canvas
-}
-
-pub fn front(canvas: &Canvas, u: usize, v: usize) -> u32 {
-    canvas.get(u + 1, v + 1)
 }
 
 fn shade(style: usize, u: usize, v: usize, t: f64) -> u32 {
@@ -179,14 +234,29 @@ mod tests {
     }
 
     #[test]
-    fn items_have_unique_keys_and_read_the_front_face() {
+    fn moving_lifts_the_cape_more_than_standing() {
+        let total = |swing: [f32; 2]| (0..SEGMENTS).map(|i| bend(swing, 0.0, i)[0]).sum::<f32>();
+        assert!(total([1.0, 0.0]) > total([0.0, 0.0]) + 1.0);
+        assert_ne!(bend([0.0, 0.0], 0.0, 3), bend([0.0, 0.0], 0.5, 3));
+        assert!(bend([0.0, 0.3], 0.0, 7)[2] > 0.0);
+    }
+
+    #[test]
+    fn items_have_unique_keys_and_hang_as_a_chain() {
         let items = items();
         let mut keys: Vec<_> = items.iter().map(|i| i.key.clone()).collect();
         keys.sort();
         keys.dedup();
         assert_eq!(keys.len(), STYLES.len());
-        let mut canvas = Canvas::default();
-        canvas.put(1, 1, 0xFF12_3456);
-        assert_eq!(front(&canvas, 0, 0), 0xFF12_3456);
+        let (lo, hi) = super::super::umbx_flair_model::bounds(&items[0].bones).unwrap();
+        assert_eq!((lo, hi), ([-HALF_W, 0.0, CAPE_Z], [HALF_W, 16.0, CAPE_Z + 1.0]));
+        let mut depth = 0;
+        let mut at = &items[0].bones[0];
+        while let Some(next) = at.children.first() {
+            depth += 1;
+            at = next;
+        }
+        assert_eq!(depth, SEGMENTS - 1);
+        assert_eq!(super::super::umbx_flair_model::layers(&chain(tiled)), 9);
     }
 }
