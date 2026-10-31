@@ -8,7 +8,7 @@ use horizon_client::title::Mode;
 use horizon_client::ui;
 
 const BACKDROP: u32 = 0x9006_0609;
-const PANEL: u32 = 0xF212_1219;
+const PANEL: u32 = 0xFF12_1219;
 const HEADER: u32 = 0xFF19_1923;
 const SIDEBAR: u32 = 0xFF15_151E;
 const CARD: u32 = 0xFF1E_1E2A;
