@@ -1,0 +1,76 @@
+[mod]
+id = "flair"
+version = "1.0.0"
+priority = 100
+
+[compatibility]
+horizon_revision = "1da354b67a509812c4141b67de2affd6de65c342"
+
+[[module]]
+id = "capes"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_capes"
+source = "capes.rs"
+
+[[module]]
+id = "cape_file"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_cape_file"
+source = "cape_file.rs"
+
+[[module]]
+id = "catalog"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_catalog"
+source = "catalog.rs"
+
+[[module]]
+id = "glue"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_glue"
+source = "glue.rs"
+
+[[module]]
+id = "screen"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_screen"
+source = "screen.rs"
+
+[[injection]]
+id = "list"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_mods"
+helper = "hooks/list.rs"
+bindings = [
+  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
+]
+
+[[injection]]
+id = "window"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::<Game<'_> as ApplicationHandler>::window_event"
+helper = "hooks/window.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "event", ty = "&winit::event::WindowEvent", value = "&event" },
+]
+
+[[injection]]
+id = "draw"
+kind = "HEAD"
+target = "horizon_client::game::debug_keys::Game<'_>::draw_debug_overlay"
+helper = "hooks/draw.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+]
+
+[[injection]]
+id = "wear"
+kind = "HEAD"
+target = "horizon_client::game::Game<'_>::entity_geometry"
+helper = "hooks/wear.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
