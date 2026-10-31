@@ -1,5 +1,7 @@
 # Flair for Horizon
 
+![Flair icon](icon.png)
+
 A native mod for [Horizon](https://github.com/horizon-rust/horizon). Flair adds a cosmetics catalog to the title screen and the pause menu: animated capes, hats, wings, shoulder pets and auras, plus any you make yourself. Cosmetics show on your own player only; other players do not see them.
 
 ## Using the catalog
@@ -9,21 +11,23 @@ A native mod for [Horizon](https://github.com/horizon-rust/horizon). Flair adds 
 | Title screen | Click **Flair** (in the row under Multiplayer) |
 | In game | Press Esc, then click **Flair** (left of the small icon buttons) |
 
-Pick a tab on the left, then click an item to wear it and click it again to take it off. You can wear one item from each tab at the same time. Your choices are remembered. In a world, the catalog shows your player on the right, wearing everything, turning toward the mouse. Press Esc or click outside the window to close it. The mouse wheel scrolls when a tab has more items than fit.
+Pick a tab on the left, then click an item to wear it and click it again to take it off. You can wear one item from each tab at the same time. Your choices are remembered. Every card shows the item itself, turning slowly, and the mouse wheel scrolls through the cards. In a world, the catalog also shows your player on the right wearing everything: drag it with the mouse to turn it around. When you pick a cape or something for your back, it turns to show your back by itself. Close the catalog with the x in its corner, with Esc, or by clicking outside it.
 
-Hats grow a little when you wear a helmet, so they always sit on top of it. Wings and pets move out a little over a chestplate.
+Under the preview, **Wearing** lists what you have on. The x on a row takes that item off. Pets and auras have a **1P** switch: when it is on, you also see them in first person. The **Hide armor** switch at the bottom left hides your armor, so your cosmetics are not covered; it only changes what you see.
+
+Hats grow a little when you wear a helmet, so they always sit on top of it. Wings and pets move out over a chestplate. While you wear something from the Back tab, your cape is hidden so the two never clip into each other.
 
 ## What is included
 
 | Tab | Items |
 |---|---|
-| Capes | Royal, Nebula, Ember, Prism, Frost, Tide, Aurora, Void Rift, Sakura, Storm, Code Rain, Synthwave |
-| Hats | Bandana, Neon Bandana, Top Hat, Halo, Crown, Devil Horns |
+| Capes | Royal, Nebula, Ember, Prism, Frost, Tide, Aurora, Great Wave, Sakura, Storm, Code Rain, Synthwave |
+| Hats | Shinobi, Ronin, Shadow, Sakura, Galaxy and Neon bandanas, Top Hat, Halo, Crown, Devil Horns |
 | Back | Angel Wings, Dragon Wings, Fairy Wings |
 | Pets | Cat, Black Cat, Mini Dragon, Void Dragon |
-| Auras | Orbit, Helix, Sparkles, Embers, Snowfall |
+| Auras | Halo Rings, Streaks, Orbits, Light Wings, Helix, Fire Ring, Lava Ring, Storm Ring, Vortex |
 
-Everything is animated: capes shift and shimmer, bandana tails sway, wings flap, pets look around and wag their tails, auras circle and drift.
+Everything is animated: capes shift and shimmer, the bandanas carry a line of brush script that runs around your forehead while their tails flow behind you, wings flap, pets look around and wag their tails, and auras are drawn with glowing lines that circle, rise and spark around you.
 
 ## Your own cosmetics
 
@@ -104,6 +108,7 @@ You need Rust 1.95 or newer, Python 3.12 or newer, a Horizon checkout at the com
 | `python tools/bundle.py apply --horizon <horizon> --mixins-tool <horizon-mixins> --out <stage> --check-target <target>` | Applies the mod to Horizon and checks that the game compiles |
 | `python tools/bundle.py package` | Writes `build/flair-<version>.hnmod` |
 | `python tools/make_example.py` | Writes the example cosmetic in `examples/cosmetics/party_hat` |
+| `python tools/make_icon.py` | Redraws `icon.png` |
 
 Made for Horizon Nightly 2026.10.30 (commit `1da354b`) with horizon-mixins `3f99a5c`. Tested on Windows 11.
 

@@ -53,15 +53,6 @@ impl Canvas {
             self.rect(rect, |x, y| paint(side, x, y, rect[2], rect[3]));
         }
     }
-
-    pub fn swatch(&mut self, index: usize, rgb: u32) {
-        let [u, v] = swatch_uv(index);
-        self.rect([u as usize, v as usize, 4, 2], |_, _| opaque(rgb));
-    }
-}
-
-pub fn swatch_uv(index: usize) -> [f32; 2] {
-    [((index % 16) * 4) as f32, ((index / 16) * 2) as f32]
 }
 
 pub const fn opaque(rgb: u32) -> u32 {

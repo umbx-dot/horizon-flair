@@ -7,6 +7,13 @@ priority = 100
 horizon_revision = "1da354b67a509812c4141b67de2affd6de65c342"
 
 [[module]]
+id = "armor"
+file = "crates/horizon-client/src/mobs/render.rs"
+name = "umbx_flair_armor"
+source = "armor.rs"
+visibility = "pub"
+
+[[module]]
 id = "paint"
 file = "crates/horizon-client/src/game.rs"
 name = "umbx_flair_paint"
@@ -85,6 +92,24 @@ name = "umbx_flair_render"
 source = "render.rs"
 
 [[module]]
+id = "preview"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_preview"
+source = "preview.rs"
+
+[[module]]
+id = "lines"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_lines"
+source = "lines.rs"
+
+[[module]]
+id = "input"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_input"
+source = "input.rs"
+
+[[module]]
 id = "glue"
 file = "crates/horizon-client/src/game.rs"
 name = "umbx_flair_glue"
@@ -133,6 +158,9 @@ target = "horizon_client::game::Game<'_>::entity_geometry"
 helper = "hooks/wear.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "camera", ty = "glam::DVec3", value = "camera" },
+  { name = "alpha", ty = "f64", value = "alpha" },
+  { name = "out", ty = "&mut Vec<horizon_client::mesher::Vertex>", value = "&mut out" },
 ]
 
 [[injection]]
@@ -156,4 +184,33 @@ bindings = [
   { name = "alpha", ty = "f64", value = "alpha" },
   { name = "light", ty = "u32", value = "light" },
   { name = "out", ty = "&mut Vec<horizon_client::mesher::Vertex>", value = "&mut *out" },
+]
+
+[[injection]]
+id = "aura_lines"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::fishing::Game<'_>::fishing_line"
+helper = "hooks/lines.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "alpha", ty = "f64", value = "alpha" },
+  { name = "size", ty = "[u32; 2]", value = "size" },
+]
+
+[[injection]]
+id = "hide_armor"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::mobs::render::render_with"
+helper = "hooks/armor.rs"
+bindings = [
+  { name = "m", ty = "&Mob", value = "m" },
+  { name = "alpha", ty = "f32", value = "alpha" },
+  { name = "camera", ty = "glam::DVec3", value = "camera" },
+  { name = "atlas", ty = "Atlas<'_>", value = "atlas" },
+  { name = "light", ty = "u32", value = "light" },
+  { name = "data", ty = "&MobData", value = "data" },
+  { name = "extra", ty = "&[(&Part, [f32; 4], u32, u32)]", value = "extra" },
+  { name = "out", ty = "&mut Vec<Vertex>", value = "out" },
 ]

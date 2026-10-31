@@ -51,6 +51,15 @@ impl Attach {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Stroke {
+    pub a: [f64; 3],
+    pub b: [f64; 3],
+    pub color: u32,
+    pub width: f32,
+}
+
+pub type Effect = fn(f64, f64, &mut Vec<Stroke>);
 pub type Painter = Box<dyn Fn(u32) -> Canvas + Send + Sync>;
 pub type Mover = Box<dyn Fn(&str, f32) -> Motion + Send + Sync>;
 
@@ -75,11 +84,20 @@ pub struct Item {
     pub bones: Vec<Bone>,
     pub paint: Paint,
     pub moves: Moves,
+    pub effect: Option<Effect>,
 }
 
 impl Item {
     pub fn new(key: &str, name: &str, slot: Slot, bones: Vec<Bone>, paint: Paint, moves: Moves) -> Self {
-        Item { key: key.into(), name: name.into(), slot, attach: slot.attach(), glow: false, bones, paint, moves }
+        Item { key: key.into(), name: name.into(), slot, attach: slot.attach(), glow: false, bones, paint, moves, effect: None }
+    }
+
+    pub fn with_effect(self, effect: Effect) -> Self {
+        Item { effect: Some(effect), ..self }
+    }
+
+    pub fn textured(&self) -> bool {
+        self.slot == Slot::Cape || !self.bones.is_empty()
     }
 
     pub fn glowing(self) -> Self {

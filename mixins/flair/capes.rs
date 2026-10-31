@@ -1,7 +1,7 @@
 use super::umbx_flair_items::{Item, Moves, Paint, Slot};
 use super::umbx_flair_paint::{Canvas, hue, mix, noise, opaque, palette};
 
-pub const STYLES: [&str; 12] = ["Royal", "Nebula", "Ember", "Prism", "Frost", "Tide", "Aurora", "Void Rift", "Sakura", "Storm", "Code Rain", "Synthwave"];
+pub const STYLES: [&str; 12] = ["Royal", "Nebula", "Ember", "Prism", "Frost", "Tide", "Aurora", "Great Wave", "Sakura", "Storm", "Code Rain", "Synthwave"];
 pub const FACE_W: usize = 10;
 pub const FACE_H: usize = 16;
 const CAPE_ROWS: usize = 32;
@@ -75,11 +75,18 @@ fn shade(style: usize, u: usize, v: usize, t: f64) -> u32 {
             if star { mix(sky, WHITE, 0.8) } else { mix(sky, curtain, glow.min(1.0)) }
         }
         7 => {
-            let line = 4.5 + 2.2 * (fv * 4.0 + t * 0.2).sin() + 0.8 * (fv * 11.0 - t * 0.35).sin();
-            let rift = (-(u as f64 - line).powi(2) * 0.45).exp();
-            let base = mix(0x05_0008, 0x18_0628, fv * 0.6);
-            let core = mix(mix(base, 0xB0_40FF, rift), WHITE, (rift - 0.75).max(0.0) * 3.0);
-            if noise(vi, t as i64 / 3) > 0.9 { mix(core, 0x30_F0FF, 0.6) } else { core }
+            let crest = 5.0 + 1.6 * (fu * 5.0 + t * 0.25).sin() + 0.8 * (fu * 11.0 - t * 0.4).sin();
+            let depth = v as f64 - crest;
+            if depth < 0.0 {
+                let (dx, dy) = (u as f64 - 7.0, v as f64 - 2.5);
+                if dx * dx + dy * dy < 3.2 { 0xD8_342C } else { mix(0xF2_E6C8, 0xE8_D4A8, fv) }
+            } else if depth < 1.0 || (depth < 2.0 && ((u as f64 + t * 0.3).floor() as i64) % 3 == 0) {
+                0xF8_F4EA
+            } else {
+                let streak = ((v as f64 + u as f64 * 0.5 - t * 0.2).floor() as i64).rem_euclid(4) == 0;
+                let water = palette(0x8F_B8E0, 0x3A_6FB5, 0x14_306A, (depth / 9.0).min(1.0));
+                if streak { mix(water, 0xF8_F4EA, 0.35) } else { water }
+            }
         }
         8 => {
             let base = palette(0x2A_0E1E, 0x4A_1838, 0x7A_2A50, fv);
