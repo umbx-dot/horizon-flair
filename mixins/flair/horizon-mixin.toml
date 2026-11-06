@@ -1,10 +1,10 @@
 [mod]
 id = "flair"
-version = "1.0.0"
+version = "1.0.1"
 priority = 100
 
 [compatibility]
-horizon_revision = "1da354b67a509812c4141b67de2affd6de65c342"
+horizon_revision = "66f3981f522b24c250b21523a70080965b940424"
 
 [[module]]
 id = "armor"
@@ -227,7 +227,7 @@ bindings = [
 id = "hide_armor"
 kind = "HEAD"
 cancellable = true
-target = "horizon_client::mobs::render::render_with"
+target = "horizon_client_lib::mobs::render::render_with"
 helper = "hooks/armor.rs"
 bindings = [
   { name = "m", ty = "&Mob", value = "m" },
@@ -236,6 +236,6 @@ bindings = [
   { name = "atlas", ty = "Atlas<'_>", value = "atlas" },
   { name = "light", ty = "u32", value = "light" },
   { name = "data", ty = "&MobData", value = "data" },
-  { name = "extra", ty = "&[(&Part, [f32; 4], u32, u32)]", value = "extra" },
+  { name = "extra", ty = "&[(&Part, [f32; 4], u32, u32, bool)]", value = "extra" },
   { name = "out", ty = "&mut Vec<Vertex>", value = "out" },
 ]

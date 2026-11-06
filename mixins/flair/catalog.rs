@@ -1,5 +1,5 @@
 pub const ID: &str = "flair";
-pub const VERSION: &str = "1.0.0";
+pub const VERSION: &str = "1.0.1";
 pub const DESCRIPTION: &str = "A cosmetics catalog: animated capes, hats, wings, shoulder pets and auras, and your own. Only you see them.";
 pub const HEADER: f32 = 24.0;
 pub const SIDEBAR: f32 = 92.0;

@@ -17,7 +17,7 @@ pub fn hidden(
     atlas: super::Atlas<'_>,
     light: u32,
     data: &super::MobData,
-    extra: &[(&super::Part, [f32; 4], u32, u32)],
+    extra: &[(&super::Part, [f32; 4], u32, u32, bool)],
     out: &mut Vec<crate::mesher::Vertex>,
 ) -> ControlFlow<()> {
     if extra.is_empty() || !HIDE.load(Ordering::Relaxed) || m.id != LOCAL.load(Ordering::Relaxed) {

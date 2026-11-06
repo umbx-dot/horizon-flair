@@ -46,7 +46,7 @@ pub(super) fn player(game: &Game<'_>, batch: &mut horizon_client::hud::HudBatch,
         game.player_cape_geometry(&m, chest, camera, 1.0, FULL_LIGHT, &mut verts);
     }
     game.player_elytra_geometry(&m, chest, camera, 1.0, FULL_LIGHT, &mut verts);
-    game.held_item_geometry(&m, camera, 1.0, FULL_LIGHT, false, &mut verts);
+    game.held_item_geometry(&m, camera, 1.0, FULL_LIGHT, false, None, &mut verts);
     game.head_item_geometry(&m, camera, 1.0, FULL_LIGHT, false, &mut verts);
     let [x, y, w, h] = rect;
     let size = (h / VIEW_HEIGHT).min(w / VIEW_WIDTH);

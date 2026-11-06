@@ -72,7 +72,7 @@ fn part(baked: &Baked) -> Part {
     Part {
         name: baked.name.clone(),
         pose: baked.pose,
-        polygons: baked.faces.iter().map(|f| Polygon { normal: f.normal, vertices: f.vertices }).collect(),
+        polygons: baked.faces.iter().map(|f| Polygon { normal: f.normal, vertices: f.vertices, cull_back: false }).collect(),
         children: baked.children.iter().map(part).collect(),
     }
 }
