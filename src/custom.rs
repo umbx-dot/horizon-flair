@@ -1,8 +1,8 @@
-use super::umbx_flair_capes as capes;
+use mod_flair::umbx_flair_capes as capes;
 use super::umbx_flair_geo as geo;
-use super::umbx_flair_items::{Attach, Item, Moves, Paint, Slot};
-use super::umbx_flair_paint::Canvas;
-use super::umbx_flair_texture_file as texture_file;
+use mod_flair::umbx_flair_items::{Attach, Item, Moves, Paint, Slot};
+use mod_flair::umbx_flair_paint::Canvas;
+use mod_flair::umbx_flair_texture_file as texture_file;
 use std::path::{Path, PathBuf};
 
 pub(super) fn items(dir: &Path) -> Vec<Item> {

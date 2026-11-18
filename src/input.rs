@@ -1,7 +1,7 @@
 use super::Game;
-use super::umbx_flair_catalog::{self as catalog, Hit, Layout, SCROLL_STEP};
+use mod_flair::umbx_flair_catalog::{self as catalog, Hit, Layout, SCROLL_STEP};
 use super::umbx_flair_glue::{self as glue, FRONT_YAW, State};
-use super::umbx_flair_items::{SLOTS, Slot};
+use mod_flair::umbx_flair_items::{SLOTS, Slot};
 use super::umbx_flair_screen as screen;
 use std::ops::ControlFlow;
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
@@ -10,9 +10,6 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 const DRAG_TURN: f32 = 1.6;
 
 pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()> {
-    if !game.native_on(catalog::ID) {
-        return ControlFlow::Continue(());
-    }
     let size = game.gui_size();
     let cursor = [game.cursor.0, game.cursor.1];
     let mut flair = glue::state();
@@ -32,7 +29,7 @@ pub(super) fn window(game: &mut Game<'_>, event: &WindowEvent) -> ControlFlow<()
     match event {
         WindowEvent::CursorMoved { position, .. } => {
             let window = game.renderer.as_ref().map_or([1280, 720], |r| [r.config.width, r.config.height]);
-            let x = position.x as f32 / horizon_client::hud::HudBatch::new(window).scale;
+            let x = position.x as f32 * game.gui_size().0 / window[0].max(1) as f32;
             if let Some(last) = flair.dragging {
                 flair.preview_yaw = (flair.preview_yaw - (x - last) * DRAG_TURN).rem_euclid(360.0);
                 flair.dragging = Some(x);

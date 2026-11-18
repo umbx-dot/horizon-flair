@@ -1,28 +1,34 @@
-#[path = "../mixins/flair/paint.rs"]
+#[path = "paint.rs"]
 pub mod umbx_flair_paint;
-#[path = "../mixins/flair/model.rs"]
+#[path = "model.rs"]
 pub mod umbx_flair_model;
-#[path = "../mixins/flair/geo.rs"]
-pub mod umbx_flair_geo;
-#[path = "../mixins/flair/items.rs"]
+#[path = "items.rs"]
 pub mod umbx_flair_items;
-#[path = "../mixins/flair/hd_capes.rs"]
+#[path = "hd_capes.rs"]
 pub mod umbx_flair_hd_capes;
-#[path = "../mixins/flair/capes.rs"]
+#[path = "capes.rs"]
 pub mod umbx_flair_capes;
-#[path = "../mixins/flair/bandanas.rs"]
+#[path = "bandanas.rs"]
 pub mod umbx_flair_bandanas;
-#[path = "../mixins/flair/hats.rs"]
+#[path = "hats.rs"]
 pub mod umbx_flair_hats;
-#[path = "../mixins/flair/back.rs"]
+#[path = "back.rs"]
 pub mod umbx_flair_back;
-#[path = "../mixins/flair/pets.rs"]
+#[path = "pets.rs"]
 pub mod umbx_flair_pets;
-#[path = "../mixins/flair/critters.rs"]
+#[path = "critters.rs"]
 pub mod umbx_flair_critters;
-#[path = "../mixins/flair/auras.rs"]
+#[path = "auras.rs"]
 pub mod umbx_flair_auras;
-#[path = "../mixins/flair/texture_file.rs"]
+#[path = "texture_file.rs"]
 pub mod umbx_flair_texture_file;
-#[path = "../mixins/flair/catalog.rs"]
+#[path = "catalog.rs"]
 pub mod umbx_flair_catalog;
+
+use mod_api::{self, Hooks};
+
+#[derive(Default)]
+struct Mod;
+
+#[mod_api::horizon_mod]
+impl Hooks for Mod {}

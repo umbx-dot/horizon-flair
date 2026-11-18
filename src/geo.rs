@@ -1,4 +1,4 @@
-use super::umbx_flair_model::{Animation, Bone, Channel, Cube, Track, Uv};
+use mod_flair::umbx_flair_model::{Animation, Bone, Channel, Cube, Track, Uv};
 use serde_json::Value;
 
 pub const FEET: f32 = 24.0;
@@ -130,7 +130,7 @@ fn channel(v: &Value, default: f32, convert: impl Fn([f32; 3]) -> [f32; 3]) -> C
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::umbx_flair_model::{cube, faces};
+    use super::mod_flair::umbx_flair_model::{cube, faces};
 
     const GEO: &str = r#"{"format_version":"1.12.0","minecraft:geometry":[{"description":{"identifier":"geometry.test","texture_width":64,"texture_height":64},
         "bones":[{"name":"head","pivot":[0,24,0],"cubes":[{"origin":[-4,24,-4],"size":[8,8,8],"uv":[0,0]}]},

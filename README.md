@@ -102,17 +102,18 @@ In the Horizon launcher, use Add from GitHub with this repository's link. Then b
 
 ## Build from source
 
-You need Rust 1.95 or newer, Python 3.12 or newer, a Horizon checkout at the commit in `compatibility.json`, and the horizon-mixins tool at the revision listed there.
+Flair is a `.hmod`: Rust source that the launcher compiles against the prebuilt Horizon build pinned in `horizon-mod.toml` (`[native] horizon`). You need Rust and Horizon's `cargo horizon-mod` tool.
 
 | Command | What it does |
 |---|---|
-| `cargo test` | Runs the tests of the models, textures, Blockbench reader, items and catalog layout |
-| `python tools/bundle.py apply --horizon <horizon> --mixins-tool <horizon-mixins> --out <stage> --check-target <target>` | Applies the mod to Horizon and checks that the game compiles |
-| `python tools/bundle.py package` | Writes `build/flair-<version>.hnmod` |
+| `cargo horizon-mod check` | Fetches the pinned build's SDK into `.horizon/sdk/` and checks the mod's crate |
+| `cargo test --lib` | Runs the tests of the catalog, painting and cosmetic logic |
+| `horizon-launcher native-build <this folder> --instance <instance> --trust-native-code` | Compiles the mod, its support modules and mixins against the prebuilt game |
+| `cargo horizon-mod build` | Writes `target/horizon-mod/flair.hmod` |
 | `python tools/make_example.py` | Writes the example cosmetic in `examples/cosmetics/party_hat` |
 | `python tools/make_icon.py` | Redraws `icon.png` |
 
-Made for Horizon Nightly 2026.11.13 (commit `9f42064`) with horizon-mixins `e59da90`. Tested on Windows 11.
+Made for Horizon Nightly 2026-11-18 (commit `0b14f8a`). Flair draws on the player through Horizon's own code (seven `[[native.mixin]]` rows and nine support modules), so each Horizon build needs a new version.
 
 ## License
 

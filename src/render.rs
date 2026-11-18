@@ -1,9 +1,9 @@
 use super::Game;
-use super::umbx_flair_capes as capes;
-use super::umbx_flair_catalog as catalog;
+use mod_flair::umbx_flair_capes as capes;
+use mod_flair::umbx_flair_catalog as catalog;
 use super::umbx_flair_glue::{self as glue, Entry};
-use super::umbx_flair_items::{Attach, Item, Slot, Stroke};
-use super::umbx_flair_model::{self as model, Baked};
+use mod_flair::umbx_flair_items::{Attach, Item, Slot, Stroke};
+use mod_flair::umbx_flair_model::{self as model, Baked};
 use glam::{DVec3, Mat4, Vec3};
 use horizon_client::hud::HudBatch;
 use horizon_client::mesher::Vertex;
@@ -99,7 +99,7 @@ pub(super) fn first_person(game: &Game<'_>, camera: DVec3, alpha: f64, out: &mut
 }
 
 fn draw(game: &Game<'_>, mob: &Mob, camera: DVec3, alpha: f64, light: u32, lit: bool, slots: &[Slot], out: &mut Vec<Vertex>) {
-    if !game.native_on(catalog::ID) || game.own_invisible() {
+    if game.own_invisible() {
         return;
     }
     let flair = glue::state();

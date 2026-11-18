@@ -1,10 +1,9 @@
 [package]
-name = "horizon-flair"
-version = "1.0.2"
+name = "mod-flair"
+version = "2.0.0"
 edition = "2024"
 license = "MIT"
 publish = false
-description = "Flair for Horizon, a native mod: a cosmetics catalog with capes, hats, wings, pets and auras."
 
 [dependencies]
-serde_json = "=1.0.151"
+horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }

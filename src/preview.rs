@@ -1,5 +1,5 @@
 use super::Game;
-use super::umbx_flair_items::Stroke;
+use mod_flair::umbx_flair_items::Stroke;
 use super::umbx_flair_render::{self as render, FULL_LIGHT};
 use glam::{DVec3, Mat4, Vec3};
 
@@ -38,9 +38,13 @@ pub(super) fn player(game: &Game<'_>, batch: &mut horizon_client::hud::HudBatch,
     let camera = DVec3::new(m.position.x, m.position.y, m.position.z);
     let atlas = &game.gui.atlas;
     let lookup = |name: &str| atlas.sprites.get(name).map(|r| [r.u0, r.v0, r.u1, r.v1]);
-    let draw = if game.own_body_visible() { horizon_client::mobs::render::render_with } else { horizon_client::mobs::render::render_layers };
     let mut verts = Vec::new();
-    draw(&m, 1.0, camera, &lookup, FULL_LIGHT, game.res.mob_data(), &game.player_armor_layers(), &mut verts);
+    let armor = game.player_armor_layers();
+    if game.own_body_visible() {
+        horizon_client::mobs::render::render_with(&m, 1.0, camera, &lookup, FULL_LIGHT, game.res.mob_data(), &armor, &mut verts);
+    } else {
+        horizon_client::mobs::render::render_layers(&m, 1.0, camera, &lookup, FULL_LIGHT, game.res.mob_data(), &armor, None, &mut verts);
+    }
     let chest = game.armor[1].as_ref().map(|s| &*s.item);
     if !game.own_invisible() {
         game.player_cape_geometry(&m, chest, camera, 1.0, FULL_LIGHT, &mut verts);

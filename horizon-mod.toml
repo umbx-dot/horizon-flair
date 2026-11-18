@@ -1,0 +1,145 @@
+id = "flair"
+name = "Flair"
+version = "2.0.0"
+description = "A cosmetics catalog: HD capes that move like cloth, animated bandanas, hats, wings, shoulder pets and auras, with a live preview. Only you see them."
+authors = ["_idom_"]
+api = "0.2"
+side = "client"
+capabilities = ["registries"]
+
+[native]
+game = "26.3"
+horizon = "0b14f8acfd97fa2c750e42795249dcc981178ca4"
+mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
+
+[[native.module]]
+id = "geo"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_geo"
+source = "src/geo.rs"
+
+[[native.module]]
+id = "custom"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_custom"
+source = "src/custom.rs"
+
+[[native.module]]
+id = "text"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_text"
+source = "src/text.rs"
+
+[[native.module]]
+id = "glue"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_glue"
+source = "src/glue.rs"
+
+[[native.module]]
+id = "render"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_render"
+source = "src/render.rs"
+
+[[native.module]]
+id = "screen"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_screen"
+source = "src/screen.rs"
+
+[[native.module]]
+id = "input"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_input"
+source = "src/input.rs"
+
+[[native.module]]
+id = "lines"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_lines"
+source = "src/lines.rs"
+
+[[native.module]]
+id = "preview"
+file = "crates/horizon-client/src/game.rs"
+name = "umbx_flair_preview"
+source = "src/preview.rs"
+
+[[native.mixin]]
+id = "window"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::window_handler::Game<'_>::handle_window_event"
+helper = "src/mixins/window.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "event", ty = "&winit::event::WindowEvent", value = "&event" },
+]
+
+[[native.mixin]]
+id = "draw"
+kind = "HEAD"
+target = "horizon_client::game::debug_keys::Game<'_>::draw_debug_overlay"
+helper = "src/mixins/draw.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+]
+
+[[native.mixin]]
+id = "wear"
+kind = "HEAD"
+target = "horizon_client::game::Game<'_>::entity_geometry"
+helper = "src/mixins/wear.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "camera", ty = "glam::DVec3", value = "camera" },
+  { name = "alpha", ty = "f64", value = "alpha" },
+  { name = "out", ty = "&mut Vec<horizon_client::mesher::Vertex>", value = "&mut out" },
+]
+
+[[native.mixin]]
+id = "frame"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::render_frame_pre::Game<'_>::native_render_frame_pre"
+helper = "src/mixins/frame.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+[[native.mixin]]
+id = "worn"
+kind = "HEAD"
+target = "horizon_client::game::mob_blocks::Game<'_>::head_item_geometry"
+helper = "src/mixins/worn.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "mob", ty = "&horizon_client::mobs::Mob", value = "mob" },
+  { name = "camera", ty = "glam::DVec3", value = "camera" },
+  { name = "alpha", ty = "f64", value = "alpha" },
+  { name = "light", ty = "u32", value = "light" },
+  { name = "lit", ty = "bool", value = "lit" },
+  { name = "out", ty = "&mut Vec<horizon_client::mesher::Vertex>", value = "&mut *out" },
+]
+
+[[native.mixin]]
+id = "aura_lines"
+kind = "HEAD"
+cancellable = true
+target = "horizon_client::game::fishing::Game<'_>::fishing_line"
+helper = "src/mixins/lines.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "alpha", ty = "f64", value = "alpha" },
+  { name = "size", ty = "[u32; 2]", value = "size" },
+]
+
+[[native.mixin]]
+id = "hide_armor"
+target = "horizon_client::game::armor_stands::Game<'_>::player_armor_layers"
+kind = "RETURN"
+helper = "src/mixins/armor.rs"
+bindings = [
+  { name = "value", ty = "Vec<(&Part, [f32; 4], u32, u32, bool)>", value = "$value" },
+]

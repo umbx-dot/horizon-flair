@@ -1,7 +1,7 @@
 use super::Game;
-use super::umbx_flair_catalog as catalog;
+use mod_flair::umbx_flair_catalog as catalog;
 use super::umbx_flair_glue as glue;
-use super::umbx_flair_items::Slot;
+use mod_flair::umbx_flair_items::Slot;
 use horizon_client::gizmos::Line;
 use std::cell::Cell;
 use std::ops::ControlFlow;
@@ -13,7 +13,7 @@ thread_local! {
 }
 
 pub(super) fn lines(game: &Game<'_>, alpha: f64, size: [u32; 2]) -> ControlFlow<Vec<Line>> {
-    if DRAWING.get() || !game.native_on(catalog::ID) || game.own_invisible() {
+    if DRAWING.get() || game.own_invisible() {
         return ControlFlow::Continue(());
     }
     let Some(m) = game.player_model.as_ref() else { return ControlFlow::Continue(()) };

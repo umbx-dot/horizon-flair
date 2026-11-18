@@ -1,6 +1,6 @@
-use super::umbx_flair_catalog::{self as catalog, CARD_H, CARD_W, Layout, clip, inside};
+use mod_flair::umbx_flair_catalog::{self as catalog, CARD_H, CARD_W, Layout, clip, inside};
 use super::umbx_flair_glue::{self as glue, State};
-use super::umbx_flair_items::{SLOTS, Slot, THEMES};
+use mod_flair::umbx_flair_items::{SLOTS, Slot, THEMES};
 use super::umbx_flair_preview::{self as preview, Look};
 use super::umbx_flair_render as render;
 use super::{Game, Screen};
@@ -54,9 +54,6 @@ pub(super) fn button(game: &Game<'_>, (w, h): (f32, f32)) -> Option<[f32; 4]> {
 }
 
 pub(super) fn draw(game: &Game<'_>, batch: &mut HudBatch) {
-    if !game.native_on(catalog::ID) {
-        return;
-    }
     let mut flair = glue::state();
     let Some(rect) = button(game, (batch.width, batch.height)) else {
         flair.open = false;
@@ -104,7 +101,7 @@ fn frame(game: &Game<'_>, batch: &mut HudBatch, flair: &State, layout: &Layout, 
     game.native_fill(batch, [x, y + header[3] - 1.0, w, 1.0], ACCENT);
     game.native_text(batch, "Flair", [x + 10.0, y + 8.0], TEXT, true);
     let tab = SLOTS[flair.category].title();
-    game.native_text(batch, tab, [x + 18.0 + game.native_text_width("Flair"), y + 8.0], MUTED, false);
+    game.native_text(batch, tab, [x + 18.0 + HudBatch::text_width(&game.gui.atlas, "Flair"), y + 8.0], MUTED, false);
     let close = layout.close();
     let over = inside(close, cursor);
     if over {
@@ -232,15 +229,15 @@ fn fill_clipped(game: &Game<'_>, batch: &mut HudBatch, rect: [f32; 4], to: [f32;
 }
 
 fn centered(game: &Game<'_>, batch: &mut HudBatch, text: &str, [x, y, w]: [f32; 3], rgb: u32) {
-    game.native_text(batch, text, [x + ((w - game.native_text_width(text)) / 2.0).floor(), y], rgb, false);
+    game.native_text(batch, text, [x + ((w - HudBatch::text_width(&game.gui.atlas, text)) / 2.0).floor(), y], rgb, false);
 }
 
 fn fitted(game: &Game<'_>, name: &str, width: f32) -> String {
-    if game.native_text_width(name) <= width {
+    if HudBatch::text_width(&game.gui.atlas, name) <= width {
         return name.to_owned();
     }
     let mut short: String = name.to_owned();
-    while !short.is_empty() && game.native_text_width(&format!("{short}..")) > width {
+    while !short.is_empty() && HudBatch::text_width(&game.gui.atlas, &format!("{short}..")) > width {
         short.pop();
     }
     format!("{short}..")

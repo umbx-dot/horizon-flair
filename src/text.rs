@@ -1,5 +1,5 @@
-use super::umbx_flair_bandanas::{STRIP_H, STRIP_W, fallback};
-use super::umbx_flair_paint::Mask;
+use mod_flair::umbx_flair_bandanas::{STRIP_H, STRIP_W, fallback};
+use mod_flair::umbx_flair_paint::Mask;
 use ab_glyph::{Font, FontVec, PxScale, ScaleFont, point};
 use std::path::PathBuf;
 

@@ -1,18 +1,20 @@
 use super::Game;
-use super::umbx_flair_auras as auras;
-use super::umbx_flair_back as back;
-use super::umbx_flair_bandanas as bandanas;
-use super::umbx_flair_capes as capes;
-use super::umbx_flair_catalog::{self as catalog, Layout};
-use super::umbx_flair_critters as critters;
+use mod_flair::umbx_flair_auras as auras;
+use mod_flair::umbx_flair_back as back;
+use mod_flair::umbx_flair_bandanas as bandanas;
+use mod_flair::umbx_flair_capes as capes;
+use mod_flair::umbx_flair_catalog::{self as catalog, Layout};
+use mod_flair::umbx_flair_critters as critters;
 use super::umbx_flair_custom as custom;
-use super::umbx_flair_hats as hats;
-use super::umbx_flair_hd_capes as hd_capes;
-use super::umbx_flair_items::{Item, SLOTS, Slot, THEMES};
-use super::umbx_flair_pets as pets;
+use mod_flair::umbx_flair_hats as hats;
+use mod_flair::umbx_flair_hd_capes as hd_capes;
+use mod_flair::umbx_flair_items::{Item, SLOTS, Slot, THEMES};
+use mod_flair::umbx_flair_pets as pets;
 use super::umbx_flair_render::{self as render, Shape};
 use super::umbx_flair_screen as screen;
 use super::umbx_flair_text as text;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 
@@ -112,7 +114,7 @@ impl State {
     }
 
     pub(super) fn equip(&mut self, game: &Game<'_>, slot: Slot, key: Option<String>) {
-        game.native_set_setting(catalog::ID, slot.key(), key.as_deref().unwrap_or(""));
+        store(game, slot.key(), key.as_deref().unwrap_or(""));
         if key.is_some() {
             self.preview_yaw = if matches!(slot, Slot::Cape | Slot::Back) { BACK_YAW } else { FRONT_YAW };
         }
@@ -122,17 +124,17 @@ impl State {
     pub(super) fn toggle_first_person(&mut self, game: &Game<'_>, slot: Slot) {
         let on = !self.first_person[slot as usize];
         self.first_person[slot as usize] = on;
-        game.native_set_setting(catalog::ID, &first_person_key(slot), &on.to_string());
+        store(game, &first_person_key(slot), &on.to_string());
     }
 
     pub(super) fn toggle_hide_armor(&mut self, game: &Game<'_>) {
         self.hide_armor = !self.hide_armor;
-        game.native_set_setting(catalog::ID, HIDE_ARMOR, &self.hide_armor.to_string());
+        store(game, HIDE_ARMOR, &self.hide_armor.to_string());
     }
 
     pub(super) fn next_theme(&mut self, game: &Game<'_>) {
         self.theme = (self.theme + 1) % THEMES.len();
-        game.native_set_setting(catalog::ID, THEME, THEMES[self.theme].0);
+        store(game, THEME, THEMES[self.theme].0);
     }
 
     pub(super) fn load(&mut self, game: &Game<'_>) {
@@ -142,15 +144,15 @@ impl State {
             let items = [capes::items(), hd_capes::items(), bandanas::items(&write), hats::items(), back::items(), pets::items(), critters::items(), auras::items()];
             self.entries = items.into_iter().flatten().map(entry).collect();
             self.builtin = self.entries.len();
-            self.equipped = SLOTS.map(|slot| game.native_setting(catalog::ID, slot.key()).filter(|key| !key.is_empty()));
-            self.first_person = SLOTS.map(|slot| game.native_setting(catalog::ID, &first_person_key(slot)).as_deref() == Some("true"));
-            self.hide_armor = game.native_setting(catalog::ID, HIDE_ARMOR).as_deref() == Some("true");
-            let theme = game.native_setting(catalog::ID, THEME);
+            self.equipped = SLOTS.map(|slot| read(game, slot.key()).filter(|key| !key.is_empty()));
+            self.first_person = SLOTS.map(|slot| read(game, &first_person_key(slot)).as_deref() == Some("true"));
+            self.hide_armor = read(game, HIDE_ARMOR).as_deref() == Some("true");
+            let theme = read(game, THEME);
             self.theme = THEMES.iter().position(|(name, _)| Some(*name) == theme.as_deref()).unwrap_or(0);
             self.ready = true;
         }
         self.entries.truncate(self.builtin);
-        self.entries.extend(custom::items(&game.native_data_dir(catalog::ID)).into_iter().map(entry));
+        self.entries.extend(custom::items(&data_dir(game)).into_iter().map(entry));
         self.uploaded.clear();
     }
 
@@ -177,27 +179,34 @@ fn first_person_key(slot: Slot) -> String {
     format!("first_person.{}", slot.key())
 }
 
-pub(super) fn listed(mods: &mut Vec<super::native_hooks::NativeMod>) {
-    mods.push(super::native_hooks::NativeMod {
-        id: catalog::ID.into(),
-        title: format!("Flair {}", catalog::VERSION),
-        description: catalog::DESCRIPTION.into(),
-        keys: Vec::new(),
-    });
+static ARMOR_HIDDEN: AtomicBool = AtomicBool::new(false);
+
+pub(super) fn hides_armor() -> bool {
+    ARMOR_HIDDEN.load(Ordering::Relaxed)
+}
+
+fn data_dir(game: &Game<'_>) -> PathBuf {
+    game.instance_dir().join("horizon-mods").join(".horizon-mod-data").join(catalog::ID)
+}
+
+fn read(game: &Game<'_>, key: &str) -> Option<String> {
+    horizon_world::native_load_context::read_setting(&data_dir(game), key)
+}
+
+fn store(game: &Game<'_>, key: &str, value: &str) {
+    let dir = data_dir(game);
+    if let Err(error) = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(dir.join(key), value)) {
+        log::warn!("Flair: couldn't keep {key}: {error}");
+    }
 }
 
 pub(super) fn frame(game: &mut Game<'_>) {
-    let local = game.player_model.as_ref().map(|m| m.id);
-    if !game.native_on(catalog::ID) {
-        horizon_client::mobs::render::umbx_flair_armor::set(false, local);
-        return;
-    }
     let mut flair = state();
     flair.started.get_or_insert_with(Instant::now);
     if !flair.ready {
         flair.load(game);
     }
-    horizon_client::mobs::render::umbx_flair_armor::set(flair.hide_armor, local);
+    ARMOR_HIDDEN.store(flair.hide_armor, Ordering::Relaxed);
     flair.swing(game);
     let ms = flair.millis();
     let mut wanted: Vec<usize> = SLOTS.iter().filter_map(|s| flair.worn(*s)).collect();
@@ -228,9 +237,6 @@ pub(super) fn frame(game: &mut Game<'_>) {
 }
 
 pub(super) fn wear(game: &mut Game<'_>, camera: glam::DVec3, alpha: f64, out: &mut Vec<horizon_client::mesher::Vertex>) {
-    if !game.native_on(catalog::ID) {
-        return;
-    }
     cape(game);
     render::first_person(game, camera, alpha, out);
 }
