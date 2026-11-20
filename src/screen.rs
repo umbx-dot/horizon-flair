@@ -22,8 +22,8 @@ const SELECTED: u32 = 0xFF25_2140;
 const TRACK: u32 = 0xFF22_222E;
 const CHIP_OFF: u32 = 0xFF2C_2C3C;
 const ACCENT: u32 = 0xFF9B_6BFF;
-const TEXT: u32 = 0xEC_ECF4;
-const MUTED: u32 = 0x86_869A;
+const TEXT: u32 = 0xFFEC_ECF4;
+const MUTED: u32 = 0xFF86_869A;
 const TITLE_BUTTON_Y: f32 = 96.0;
 const PAUSE_GRID: [f32; 2] = [212.0, 166.0];
 const PAUSE_LINKS: f32 = 24.0;
@@ -161,7 +161,7 @@ fn cards(game: &Game<'_>, batch: &mut HudBatch, flair: &State, layout: &Layout, 
         let label = card[1] + CARD_H - NAME_H + 2.0;
         if label >= content[1] && label + 9.0 <= content[1] + content[3] {
             let name = fitted(game, &entry.item.name, CARD_W - 6.0);
-            centered(game, batch, &name, [card[0], label, CARD_W], if worn { ACCENT & 0xFF_FFFF } else { TEXT });
+            centered(game, batch, &name, [card[0], label, CARD_W], if worn { ACCENT } else { TEXT });
         }
     }
     let max = layout.max_scroll(shown.len());
@@ -228,8 +228,8 @@ fn fill_clipped(game: &Game<'_>, batch: &mut HudBatch, rect: [f32; 4], to: [f32;
     }
 }
 
-fn centered(game: &Game<'_>, batch: &mut HudBatch, text: &str, [x, y, w]: [f32; 3], rgb: u32) {
-    game.native_text(batch, text, [x + ((w - HudBatch::text_width(&game.gui.atlas, text)) / 2.0).floor(), y], rgb, false);
+fn centered(game: &Game<'_>, batch: &mut HudBatch, text: &str, [x, y, w]: [f32; 3], argb: u32) {
+    game.native_text(batch, text, [x + ((w - HudBatch::text_width(&game.gui.atlas, text)) / 2.0).floor(), y], argb, false);
 }
 
 fn fitted(game: &Game<'_>, name: &str, width: f32) -> String {
