@@ -113,7 +113,7 @@ Flair is a `.hmod`: Rust source that the launcher compiles against the prebuilt 
 | `python tools/make_example.py` | Writes the example cosmetic in `examples/cosmetics/party_hat` |
 | `python tools/make_icon.py` | Redraws `icon.png` |
 
-Made for Horizon Nightly 2026-11-18 (commit `0b14f8a`). Flair draws on the player through Horizon's own code (seven `[[native.mixin]]` rows and nine support modules), so each Horizon build needs a new version.
+Made for Horizon Nightly 2026-11-20 (commit `0a875da`). Flair draws on the player through Horizon's own code (seven `[[native.mixin]]` rows and nine support modules), so each Horizon build needs a new version.
 
 ## License
 
